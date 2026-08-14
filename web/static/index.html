@@ -1,0 +1,61 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>netmap</title>
+<link rel="icon" href="/static/favicon.svg">
+<script>
+  // тема до первой отрисовки, иначе при загрузке мигает светлым
+  try {
+    var saved = localStorage.getItem("netmap-theme");
+    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/static/xterm.css">
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body>
+
+<header>
+  <span class="brand">netmap</span>
+  <input id="subnet" value="172.20.20.0/24" spellcheck="false">
+  <span id="status"></span>
+  <button id="theme" title="Сменить тему">
+    <svg class="icon-moon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M20 14.5A8.5 8.5 0 0 1 9.5 4a8.5 8.5 0 1 0 10.5 10.5Z"/>
+    </svg>
+    <svg class="icon-sun" viewBox="0 0 24 24" fill="none" stroke="currentColor"
+         stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+      <circle cx="12" cy="12" r="4"/>
+      <path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/>
+    </svg>
+  </button>
+</header>
+
+<main>
+  <aside id="panel">
+    <ul id="tree"></ul>
+  </aside>
+
+  <section id="workspace">
+    <div id="map"></div>
+
+    <section id="terminal" hidden>
+      <div id="term-grip"></div>
+      <div id="term-tabs">
+        <div id="term-list"></div>
+        <button id="term-hide" class="term-icon" title="Скрыть терминал">&#10005;</button>
+      </div>
+      <div id="term-body"></div>
+    </section>
+  </section>
+</main>
+
+<script src="/static/cytoscape.min.js"></script>
+<script src="/static/xterm.js"></script>
+<script src="/static/addon-fit.js"></script>
+<script src="/static/icons.js"></script>
+<script src="/static/app.js"></script>
+</body>
+</html>

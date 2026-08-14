@@ -1,0 +1,493 @@
+/* :root держит тёмную тему, [data-theme="light"] её перекрывает.
+   тема ставится на <html> до первой отрисовки, иначе мигает светлым */
+
+:root {
+  --bg: #030712;
+  --bg-elev: #1a1f23;
+  --bg-hover: #242b32;
+  --border: #1f2937;
+  --text: #f9fafb;
+  --muted: #8b949e;
+  --accent: #1652f0;
+  --accent-hover: #4071f3;
+  --accent-text: #ffffff;
+  --pos: #34c759;
+  --neg: #f4212e;
+  --grid: rgba(255, 255, 255, 0.035);
+  --grid-strong: rgba(255, 255, 255, 0.07);
+}
+
+[data-theme="light"] {
+  --bg: #ffffff;
+  --bg-elev: #f7f9f9;
+  --bg-hover: #eff3f4;
+  --border: #e5e7eb;
+  --text: #0f1419;
+  --muted: #536471;
+  --accent: #1652f0;
+  --accent-hover: #0c3ec1;
+  --accent-text: #ffffff;
+  --pos: #2bae4c;
+  --neg: #d32029;
+  --grid: rgba(15, 20, 25, 0.05);
+  --grid-strong: rgba(15, 20, 25, 0.1);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  height: 100vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--bg);
+  color: var(--text);
+  font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
+    Helvetica, Arial, sans-serif;
+  transition: background-color 0.2s ease, color 0.2s ease;
+}
+
+header {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  padding: 10px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+.brand {
+  font-size: 20px;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+input,
+button {
+  font: inherit;
+  padding: 9px 14px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: var(--bg-elev);
+  color: var(--text);
+  transition: background-color 0.15s ease, border-color 0.15s ease,
+    color 0.15s ease;
+}
+
+input::placeholder {
+  color: var(--muted);
+}
+
+input:focus {
+  outline: none;
+  border-color: var(--accent);
+  background: var(--bg);
+}
+
+button {
+  cursor: pointer;
+}
+
+button:hover {
+  background: var(--bg-hover);
+}
+
+#scan,
+form button {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+}
+
+#scan:hover,
+form button:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+button.secondary {
+  background: transparent;
+  color: var(--muted);
+}
+
+#status {
+  color: var(--muted);
+  margin-left: auto;
+  font-size: 13px;
+}
+
+/* кнопка темы, значок переключает css */
+#theme {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 36px;
+  height: 36px;
+  padding: 0;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  flex-shrink: 0;
+}
+
+#theme:hover {
+  background: var(--bg-hover);
+}
+
+#theme svg {
+  width: 18px;
+  height: 18px;
+}
+
+#theme .icon-sun {
+  display: none;
+}
+
+[data-theme="light"] #theme .icon-sun {
+  display: block;
+}
+
+[data-theme="light"] #theme .icon-moon {
+  display: none;
+}
+
+main {
+  flex: 1;
+  display: flex;
+  min-height: 0;
+}
+
+/* чертёжная клетка, шаг и сдвиг подстраиваются под масштаб из кода */
+#map {
+  flex: 1;
+  /* без этого карта не ужимается и терминал наезжает на неё */
+  min-height: 0;
+  background-color: var(--bg);
+  background-image: linear-gradient(var(--grid-strong) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid-strong) 1px, transparent 1px),
+    linear-gradient(var(--grid) 1px, transparent 1px),
+    linear-gradient(90deg, var(--grid) 1px, transparent 1px);
+  background-size: 160px 160px, 160px 160px, 32px 32px, 32px 32px;
+  transition: background-color 0.2s ease;
+}
+
+aside {
+  width: 260px;
+  flex: none;
+  border-right: 1px solid var(--border);
+  padding: 8px 0;
+  overflow-y: auto;
+  background: var(--bg);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+  font-size: 13px;
+}
+
+#tree,
+#tree ul {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+/* строка дерева: сеть или устройство */
+.row {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  width: 100%;
+  padding: 4px 10px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.row:hover {
+  background: var(--bg-hover);
+}
+
+.row.picked {
+  background: var(--bg-hover);
+  color: var(--accent);
+}
+
+.row:focus-visible {
+  outline: 1px solid var(--accent);
+  outline-offset: -1px;
+}
+
+.net .name {
+  font-weight: 700;
+  letter-spacing: 0.01em;
+}
+
+.caret {
+  flex: none;
+  width: 12px;
+  height: 12px;
+  color: var(--muted);
+  transition: transform 0.2s ease;
+}
+
+.open > .row .caret {
+  transform: rotate(90deg);
+}
+
+.device .row {
+  padding-left: 26px;
+}
+
+.device .row img {
+  width: 17px;
+  height: 17px;
+  flex: none;
+}
+
+.count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+/* раскрытие: блок едет от нулевой высоты к своей собственной */
+.fold {
+  display: grid;
+  grid-template-rows: 0fr;
+  transition: grid-template-rows 0.22s ease;
+}
+
+.open > .fold {
+  grid-template-rows: 1fr;
+}
+
+.fold > .inner {
+  overflow: hidden;
+  min-height: 0;
+}
+
+.card {
+  padding: 6px 12px 14px 26px;
+}
+
+.card dl {
+  display: grid;
+  grid-template-columns: 104px 1fr;
+  gap: 6px 8px;
+  margin: 0 0 12px;
+  font-size: 12px;
+}
+
+.card dt {
+  color: var(--muted);
+}
+
+.card dd {
+  margin: 0;
+  overflow-wrap: anywhere;
+}
+
+.card h3 {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted);
+  margin: 14px 0 6px;
+}
+
+.mono {
+  font-family: ui-monospace, Menlo, monospace;
+  font-size: 11px;
+}
+
+.card input,
+.card button {
+  font-size: 13px;
+  padding: 7px 12px;
+}
+
+button.wide {
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.card input {
+  display: block;
+  width: 100%;
+  margin-bottom: 8px;
+}
+
+.error {
+  color: var(--neg);
+  min-height: 18px;
+  font-size: 12px;
+  margin: 4px 0 0;
+}
+
+table.neighbors {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+  margin-bottom: 10px;
+}
+
+table.neighbors td {
+  padding: 4px 0;
+  color: var(--text);
+}
+
+table.neighbors td:last-child {
+  text-align: right;
+  color: var(--muted);
+}
+
+/* ---------- рабочая область и терминал ---------- */
+
+#workspace {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+}
+
+/* терминал занимает низ рабочей области и не залезает на меню */
+#terminal {
+  display: flex;
+  flex-direction: column;
+  flex: none;
+  height: 320px;
+  min-height: 120px;
+  border-top: 1px solid var(--border);
+  background: var(--bg);
+  transition: background-color 0.2s ease, border-color 0.2s ease;
+}
+
+#terminal[hidden] {
+  display: none;
+}
+
+#term-grip {
+  height: 5px;
+  margin-top: -3px;
+  cursor: row-resize;
+}
+
+#term-grip:hover {
+  background: var(--accent);
+}
+
+#term-tabs {
+  display: flex;
+  align-items: stretch;
+  border-bottom: 1px solid var(--border);
+  transition: border-color 0.2s ease;
+}
+
+#term-list {
+  display: flex;
+  align-items: stretch;
+  overflow-x: auto;
+  flex: 1;
+}
+
+/* вкладка устройства, активная подчёркивается акцентом */
+.term-tab {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 12px;
+  transition: background-color 0.2s ease, color 0.2s ease,
+    border-color 0.2s ease;
+  border: 0;
+  border-bottom: 2px solid transparent;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+  white-space: nowrap;
+}
+
+.term-tab:hover {
+  background: var(--bg-hover);
+}
+
+.term-tab.active {
+  color: var(--text);
+  border-bottom-color: var(--accent);
+  background: var(--bg-hover);
+}
+
+.term-tab .live {
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--muted);
+  flex: none;
+}
+
+.term-tab.online .live {
+  background: var(--pos);
+}
+
+.term-tab.offline .live {
+  background: var(--neg);
+}
+
+.term-tab .shut {
+  color: var(--muted);
+  font-size: 12px;
+  line-height: 1;
+}
+
+.term-tab .shut:hover {
+  color: var(--text);
+}
+
+.term-icon {
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--muted);
+  padding: 0 14px;
+  font-size: 13px;
+}
+
+.term-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.term-pane {
+  height: 100%;
+  background: var(--bg);
+  transition: background-color 0.2s ease;
+}
+
+/* полоса прокрутки под цвет темы, иначе остаётся светлой */
+.term-pane .xterm-viewport {
+  background: transparent !important;
+  scrollbar-width: thin;
+  scrollbar-color: var(--border) transparent;
+}
+
+.term-pane[hidden] {
+  display: none;
+}
+
+#term-body {
+  flex: 1;
+  min-height: 0;
+  padding: 6px 10px;
+}
+
+#term-body .xterm {
+  height: 100%;
+}

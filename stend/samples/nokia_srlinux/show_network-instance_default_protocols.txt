@@ -1,0 +1,18 @@
+usage: show
+
+Show the show report of the current context
+
+Local commands:
+  ..                Moves up one level
+  /                 Moves you to the root
+  bgp
+  bgp-evpn
+  bgp-vpn
+  igmp
+  igmp-snooping
+  isis
+  mld
+  mld-snooping
+  ospf
+  pim
+

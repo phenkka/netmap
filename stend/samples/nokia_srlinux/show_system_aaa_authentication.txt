@@ -1,0 +1,9 @@
+usage: show
+
+Show the show report of the current context
+
+Local commands:
+  ..                Moves up one level
+  /                 Moves you to the root
+  session           Show AAA authentication sessions report
+
