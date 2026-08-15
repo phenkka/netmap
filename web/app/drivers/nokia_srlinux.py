@@ -6,6 +6,14 @@ class NokiaSrLinux(Driver):
     vendor = "Nokia"
     version_command = "show version"
     neighbors_command = "info from state system lldp interface *"
+    config_command = "info from running"
+
+    # candidate общий для всех сессий, чужую несохранённую правку видно
+    pending_diff_commands = ["enter candidate", "diff"]
+    # режимов четыре: running, candidate, show, state. приглашение вида
+    # --{ + candidate shared default }-- , настройка идёт только в candidate
+    prompt_pattern = r"--\{[^}]*\}"
+    config_prompt_marker = r"candidate"
 
     @classmethod
     def matches(cls, output: str) -> bool:

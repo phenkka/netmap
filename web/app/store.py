@@ -1,5 +1,7 @@
+import hashlib
 import sqlite3
 import threading
+import zlib
 from datetime import datetime, timezone
 from pathlib import Path
 
@@ -29,6 +31,18 @@ CREATE TABLE IF NOT EXISTS neighbors (
     capabilities TEXT,
     PRIMARY KEY (ip, local_port, remote_name, remote_port)
 );
+
+CREATE TABLE IF NOT EXISTS configs (
+    id     INTEGER PRIMARY KEY AUTOINCREMENT,
+    ip     TEXT NOT NULL,
+    at     TEXT NOT NULL,
+    sha256 TEXT NOT NULL,
+    lines  INTEGER NOT NULL,
+    source TEXT NOT NULL,
+    text   BLOB NOT NULL
+);
+
+CREATE INDEX IF NOT EXISTS configs_by_device ON configs (ip, id DESC);
 """
 
 # учётные данные только в памяти, на диск не пишутся
@@ -49,6 +63,8 @@ def _connect() -> sqlite3.Connection:
 def init() -> None:
     DB_PATH.parent.mkdir(parents=True, exist_ok=True)
     with _connect() as conn:
+        # снятие конфигураций пишет из пула потоков, без WAL они встают в очередь
+        conn.execute("PRAGMA journal_mode = WAL")
         conn.executescript(SCHEMA)
 
         # статус лежит на диске, а пароля после перезапуска нет,
@@ -147,6 +163,72 @@ def neighbors_of(ip: str) -> list[dict]:
             "SELECT * FROM neighbors WHERE ip = ? ORDER BY local_port", (ip,)
         ).fetchall()
     return [dict(row) for row in rows]
+
+
+def save_config(ip: str, text: str, source: str) -> dict | None:
+    """пишет новую версию, если конфигурация изменилась, иначе отдаёт None"""
+    digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
+    with _connect() as conn:
+        last = conn.execute(
+            "SELECT sha256 FROM configs WHERE ip = ? ORDER BY id DESC LIMIT 1", (ip,)
+        ).fetchone()
+        # без сравнения хешей за год накопится 365 одинаковых копий
+        if last and last["sha256"] == digest:
+            return None
+
+        at = _now()
+        cursor = conn.execute(
+            """
+            INSERT INTO configs (ip, at, sha256, lines, source, text)
+            VALUES (?, ?, ?, ?, ?, ?)
+            """,
+            # SQLite длинный текст не сжимает, поэтому жмём сами
+            (ip, at, digest, text.count("\n") + 1, source, zlib.compress(text.encode("utf-8"), 6)),
+        )
+    return {
+        "id": cursor.lastrowid,
+        "ip": ip,
+        "at": at,
+        "sha256": digest,
+        "lines": text.count("\n") + 1,
+        "source": source,
+    }
+
+
+def configs(ip: str) -> list[dict]:
+    with _connect() as conn:
+        rows = conn.execute(
+            """
+            SELECT id, ip, at, sha256, lines, source
+              FROM configs
+             WHERE ip = ?
+             ORDER BY id DESC
+            """,
+            (ip,),
+        ).fetchall()
+    return [dict(row) for row in rows]
+
+
+def config(version_id: int) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute("SELECT * FROM configs WHERE id = ?", (version_id,)).fetchone()
+    return _unpack(row)
+
+
+def last_config(ip: str) -> dict | None:
+    with _connect() as conn:
+        row = conn.execute(
+            "SELECT * FROM configs WHERE ip = ? ORDER BY id DESC LIMIT 1", (ip,)
+        ).fetchone()
+    return _unpack(row)
+
+
+def _unpack(row: sqlite3.Row | None) -> dict | None:
+    if not row:
+        return None
+    version = dict(row)
+    version["text"] = zlib.decompress(version["text"]).decode("utf-8")
+    return version
 
 
 def set_credentials(ip: str, username: str, password: str) -> None:

@@ -36,6 +36,29 @@
 <main>
   <aside id="panel">
     <ul id="tree"></ul>
+
+    <section id="config-view">
+      <div id="config-head">
+        <img id="config-icon" alt="">
+        <span id="config-name"></span>
+        <span id="config-lock" hidden>идёт настройка</span>
+        <button id="config-close" title="Вернуться к списку">&#10005;</button>
+      </div>
+
+      <div id="history">
+        <div class="cfg-title">История изменений</div>
+        <ul id="version-list"></ul>
+      </div>
+
+      <div id="current">
+        <div class="cfg-title">
+          <span id="config-what">Текущая конфигурация</span>
+          <span id="pending-mark" hidden>не сохранено</span>
+          <button id="back-current" hidden>к текущей</button>
+        </div>
+        <pre id="config-text"></pre>
+      </div>
+    </section>
   </aside>
 
   <section id="workspace">
@@ -55,7 +78,6 @@
 <script src="/static/cytoscape.min.js"></script>
 <script src="/static/xterm.js"></script>
 <script src="/static/addon-fit.js"></script>
-<script src="/static/icons.js"></script>
-<script src="/static/app.js"></script>
+<script type="module" src="/static/app.js"></script>
 </body>
 </html>

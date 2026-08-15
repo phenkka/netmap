@@ -183,8 +183,242 @@ aside {
   padding: 8px 0;
   overflow-y: auto;
   background: var(--bg);
-  transition: background-color 0.2s ease, border-color 0.2s ease;
+  /* 0.42s ease-in-out это MOTION и EASING из app.js, как у перестройки схемы */
+  transition: background-color 0.2s ease, border-color 0.2s ease, width 0.42s ease-in-out;
   font-size: 13px;
+}
+
+/* в режиме конфигурации панель расширяется, дерево уступает место
+   истории и тексту конфигурации */
+aside.config {
+  width: 460px;
+  padding: 0;
+  overflow: hidden;
+  display: flex;
+  flex-direction: column;
+}
+
+aside.config #tree {
+  display: none;
+}
+
+#config-view {
+  display: none;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+  opacity: 0;
+  transition: opacity 0.42s ease-in-out;
+}
+
+aside.config #config-view {
+  display: flex;
+  opacity: 1;
+}
+
+#config-head {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 12px;
+  border-bottom: 1px solid var(--border);
+  font-weight: 600;
+}
+
+#config-icon {
+  width: 19px;
+  height: 19px;
+  flex: none;
+}
+
+#config-name {
+  flex: 1;
+}
+
+/* пока идёт настройка, панель не закрыть, иначе человек остаётся
+   в режиме конфигурации без истории перед глазами */
+#config-lock {
+  color: var(--muted);
+  font-size: 10px;
+  font-weight: 400;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#config-close {
+  border: 0;
+  background: transparent;
+  color: var(--muted);
+  cursor: pointer;
+  font-size: 13px;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+#config-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+.cfg-title {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 7px 12px;
+  color: var(--muted);
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+}
+
+#back-current {
+  margin-left: auto;
+  padding: 2px 9px;
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+  cursor: pointer;
+}
+
+#back-current:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+#pending-mark {
+  color: var(--accent-text);
+  background: var(--neg);
+  border-radius: 3px;
+  padding: 1px 5px;
+  font-size: 10px;
+  letter-spacing: 0;
+  text-transform: none;
+}
+
+/* история занимает верх, конфигурация низ, делятся по горизонтали */
+#history {
+  flex: 0 0 38%;
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  border-bottom: 1px solid var(--border);
+}
+
+#version-list {
+  list-style: none;
+  margin: 0;
+  padding: 0 0 6px;
+  overflow-y: auto;
+  min-height: 0;
+}
+
+.version {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  width: 100%;
+  padding: 5px 12px;
+  border: 0;
+  border-radius: 0;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+.version:hover {
+  background: var(--bg-hover);
+}
+
+.version.picked {
+  background: var(--bg-hover);
+  box-shadow: inset 2px 0 0 var(--accent);
+}
+
+.version .when {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.version .grew {
+  color: var(--pos);
+}
+
+.version .shrank {
+  color: var(--neg);
+}
+
+#current {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+  flex: 1;
+}
+
+#config-text {
+  margin: 0;
+  padding: 0 12px 12px;
+  overflow: auto;
+  min-height: 0;
+  flex: 1;
+  font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
+  white-space: pre;
+  color: var(--text);
+  scrollbar-width: thin;
+}
+
+/* macOS прячет полосу до прокрутки, а по ней видно объём документа */
+#config-text::-webkit-scrollbar {
+  width: 12px;
+  height: 12px;
+}
+
+#config-text::-webkit-scrollbar-track {
+  background: var(--bg-elev);
+  border-left: 1px solid var(--border);
+}
+
+#config-text::-webkit-scrollbar-thumb {
+  background: var(--muted);
+  border: 2px solid var(--bg-elev);
+  border-radius: 6px;
+}
+
+#config-text::-webkit-scrollbar-thumb:hover {
+  background: var(--text);
+}
+
+/* номера рисуем счётчиком, тогда они не попадают в скопированный текст */
+#config-text.numbered {
+  counter-reset: line;
+}
+
+#config-text.numbered span::before {
+  counter-increment: line;
+  content: counter(line);
+  display: inline-block;
+  width: 3em;
+  margin-right: 12px;
+  text-align: right;
+  color: var(--muted);
+  user-select: none;
+}
+
+#config-text .add {
+  color: var(--pos);
+}
+
+#config-text .drop {
+  color: var(--neg);
+}
+
+#config-text .at {
+  color: var(--muted);
 }
 
 #tree,

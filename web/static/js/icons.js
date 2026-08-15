@@ -76,3 +76,5 @@ const ICONS = {
       `<path d="M33 45v.3" stroke-width="2.6"/>`
   ),
 };
+
+export { ICONS };
