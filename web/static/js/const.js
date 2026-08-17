@@ -18,6 +18,7 @@ export const FOCUS_WAIT = 90;
 // двойного клика у карты нет, считаем два нажатия подряд
 export const DOUBLE_TAP = 350;
 
+export const EDGE_FADE = 320;
 export const MOTION = 420;
 export const EASING = "ease-in-out";
 export const THEME_FADE = 200;

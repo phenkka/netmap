@@ -1,6 +1,6 @@
 import { ICONS } from "./icons.js";
 import { statusColor, themeColor } from "./colors.js";
-import { ICON_SIZE, NODE_FONT, PORT_FONT, PORT_OFFSET } from "./const.js";
+import { ICON_SIZE, NODE_FONT, PORT_FONT, PORT_OFFSET, EDGE_FADE } from "./const.js";
 
 export const cy = cytoscape({
   container: document.getElementById("map"),
@@ -42,7 +42,14 @@ export const cy = cytoscape({
         "text-background-opacity": 0.85,
         "text-background-padding": 3,
         "text-background-shape": "roundrectangle",
+        "transition-property": "opacity",
+        "transition-duration": EDGE_FADE,
+        "transition-timing-function": "ease-out-sine",
       },
+    },
+    {
+      selector: "edge.arriving",
+      style: { opacity: 0 },
     },
     {
       selector: "edge.ports",

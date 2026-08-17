@@ -29,6 +29,12 @@ export function syncGrid() {
 
 cy.on("zoom pan", syncGrid);
 
+// в одном кадре поставленный и снятый класс перехода не даёт
+function arrive(added) {
+  added.addClass("arriving");
+  requestAnimationFrame(() => added.removeClass("arriving"));
+}
+
 // ethernet-1/1 → eth1/1, полное имя остаётся в карточке
 function shortPort(name) {
   const match = String(name).match(/^([A-Za-z]*)[_-]*(.*)$/);
@@ -145,7 +151,7 @@ export async function loadGraph() {
     };
     const known = cy.getElementById(link.id);
     if (known.length) known.data(data);
-    else cy.add({ group: "edges", data });
+    else arrive(cy.add({ group: "edges", data }));
   }
 
   cy.nodes().forEach((node) => {
