@@ -1,0 +1,33 @@
+name: netmap
+
+services:
+  db:
+    image: postgres:16-alpine
+    environment:
+      POSTGRES_DB: netmap
+      POSTGRES_USER: netmap
+      POSTGRES_HOST_AUTH_METHOD: trust
+    command: postgres -c listen_addresses=''
+    volumes:
+      - netmap-db:/var/lib/postgresql/data
+      - netmap-socket:/var/run/postgresql
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U netmap -d netmap"]
+      interval: 5s
+      timeout: 3s
+      retries: 10
+    restart: unless-stopped
+
+  app:
+    build: .
+    network_mode: host
+    volumes:
+      - netmap-socket:/var/run/postgresql
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+
+volumes:
+  netmap-db:
+  netmap-socket:

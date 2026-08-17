@@ -11,10 +11,8 @@ OUI_FILE = Path(__file__).resolve().parent / "oui.csv"
 SSH_PORT = 22
 CONNECT_TIMEOUT = 1.5
 BANNER_TIMEOUT = 2.0
-# это проверка порта, а не сеанс SSH, поэтому потоков больше, чем при опросе
 CONCURRENCY = 128
 
-# приветствие выдаёт производителя не у всех, у Nokia и Arista там OpenSSH
 BANNER_VENDORS = [
     ("sr linux", "Nokia"),
     ("srlinux", "Nokia"),
