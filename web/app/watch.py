@@ -1,4 +1,5 @@
 import asyncio
+import time
 
 from . import drivers, inventory, scanner, ssh, store
 
@@ -17,12 +18,15 @@ def subnet() -> str | None:
 
 async def run() -> None:
     cycle = 0
+    pause = SCAN_EVERY
     while True:
-        await asyncio.sleep(SCAN_EVERY)
+        await asyncio.sleep(pause)
         cycle += 1
         target = subnet()
         if not target:
             continue
+
+        started = time.monotonic()
         try:
             for item in await scanner.scan(target):
                 store.save_detected(
@@ -35,6 +39,10 @@ async def run() -> None:
             continue
         if cycle % LLDP_EVERY == 0:
             await refresh_neighbors()
+
+        # крупную сеть обход проходит минутами, и без этой паузы машина
+        # оказывается занята им почти непрерывно
+        pause = max(SCAN_EVERY, time.monotonic() - started)
 
 
 async def refresh_neighbors() -> None:
