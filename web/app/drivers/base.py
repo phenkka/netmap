@@ -10,6 +10,9 @@ class Driver:
     # черновика конфигурации нет у Cisco IOS и MikroTik, они применяют сразу
     pending_diff_commands: list[str] = []
 
+    lldp_state_command = ""
+    lldp_enable_commands: list[str] = []
+
     # режим определяем по приглашению устройства, а не по набранной команде,
     # её чаще поднимают стрелкой вверх, чем печатают
     prompt_pattern = ""
@@ -39,3 +42,7 @@ class Driver:
     @classmethod
     def clean_pending_diff(cls, output: str) -> str:
         return output.strip()
+
+    @classmethod
+    def lldp_ready(cls, output: str) -> bool:
+        return True

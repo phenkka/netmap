@@ -21,18 +21,24 @@ CREATE TABLE IF NOT EXISTS devices (
     model        TEXT,
     version      TEXT,
     error        TEXT,
+    lldp         TEXT,
     first_seen   TEXT,
     last_seen    TEXT
 );
+
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS lldp TEXT;
 
 CREATE TABLE IF NOT EXISTS neighbors (
     ip           TEXT NOT NULL,
     local_port   TEXT NOT NULL,
     remote_name  TEXT NOT NULL,
     remote_port  TEXT NOT NULL,
+    remote_addr  TEXT,
     capabilities TEXT,
     PRIMARY KEY (ip, local_port, remote_name, remote_port)
 );
+
+ALTER TABLE neighbors ADD COLUMN IF NOT EXISTS remote_addr TEXT;
 
 CREATE TABLE IF NOT EXISTS configs (
     id     BIGSERIAL PRIMARY KEY,
@@ -116,6 +122,11 @@ def save_identity(ip: str, hostname: str, vendor: str, model: str, version: str)
         )
 
 
+def save_lldp(ip: str, state: str | None) -> None:
+    with _pool.connection() as conn:
+        conn.execute("UPDATE devices SET lldp = %s WHERE ip = %s", (state, ip))
+
+
 def save_error(ip: str, message: str) -> None:
     save_status(ip, "failed", message)
 
@@ -143,8 +154,8 @@ def save_neighbors(ip: str, links: list[dict]) -> None:
         cursor.execute("DELETE FROM neighbors WHERE ip = %s", (ip,))
         cursor.executemany(
             """
-            INSERT INTO neighbors (ip, local_port, remote_name, remote_port, capabilities)
-            VALUES (%s, %s, %s, %s, %s)
+            INSERT INTO neighbors (ip, local_port, remote_name, remote_port, remote_addr, capabilities)
+            VALUES (%s, %s, %s, %s, %s, %s)
             ON CONFLICT DO NOTHING
             """,
             [
@@ -153,6 +164,7 @@ def save_neighbors(ip: str, links: list[dict]) -> None:
                     n["local_port"],
                     n["remote_name"],
                     n["remote_port"],
+                    n.get("remote_addr") or None,
                     n.get("capabilities", ""),
                 )
                 for n in links

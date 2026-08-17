@@ -11,6 +11,20 @@ import { openTerminal } from "./terminal.js";
 import { refreshAll } from "./load.js";
 import { PICKED_SCALE } from "./const.js";
 
+const KIND = {
+  switch: "коммутатор",
+  router: "маршрутизатор",
+  multilayer: "коммутатор с маршрутизацией",
+  firewall: "межсетевой экран",
+  wifi: "точка доступа",
+};
+
+const LLDP = {
+  enabled: "LLDP был выключен, продукт включил его при входе. Без него соседи не видны.",
+  busy: "LLDP выключен, но включать не стали: на устройстве есть незакоммиченная правка, и наш commit применил бы её. Повторите вход, когда правку сохранят или отменят.",
+  failed: "LLDP выключен, включить не удалось. Пока он выключен, соседи этого устройства не видны.",
+};
+
 const tree = document.getElementById("tree");
 let netOpen = localStorage.getItem("net-open") !== "no";
 
@@ -105,15 +119,34 @@ function field(label, value) {
 function deviceDetails(device) {
   const box = document.createElement("div");
 
+  const kind = KIND[device.type];
+
   const list = document.createElement("dl");
   list.append(
     ...field("Адрес", device.ip),
     ...field("MAC", device.mac || "нет данных"),
-    ...field("Производитель", device.vendor || device.vendor_guess || "не определён")
+    ...field("Производитель", device.vendor || device.vendor_guess || "не определён"),
+    ...field("Тип", kind || "уточнится после входа")
   );
   if (device.model) list.append(...field("Модель", device.model));
   if (device.version) list.append(...field("Версия", device.version));
   box.append(list);
+
+  if (LLDP[device.lldp]) {
+    const note = document.createElement("p");
+    note.className = "hint";
+    note.textContent = LLDP[device.lldp];
+    box.append(note);
+  }
+
+  if (!kind) {
+    const hint = document.createElement("p");
+    hint.className = "hint";
+    hint.textContent =
+      "MAC-адрес выдаёт производителя, но не тип: у Nokia и Cisco есть и коммутаторы, " +
+      "и маршрутизаторы. Тип берётся из модели устройства, а её видно только после входа.";
+    box.append(hint);
+  }
 
   box.append(
     button("Сделать корнем схемы", "secondary", () => {

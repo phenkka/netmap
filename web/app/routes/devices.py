@@ -37,11 +37,10 @@ def settings() -> dict:
 
 @router.get("/devices")
 def devices() -> dict:
-    known = inventory.capabilities()
     result = []
     for row in store.devices():
         device = inventory.decorate(row)
-        device["type"] = inventory.node_type(device, known)
+        device["type"] = inventory.node_type(device)
         result.append(device)
     return {"devices": result}
 
@@ -65,8 +64,18 @@ def authorize(ip: str, request: AuthRequest) -> dict:
     store.save_identity(
         ip, identity["hostname"], driver.vendor, identity["model"], identity["version"]
     )
+    _settle_lldp(ip, driver, request.username, request.password)
     inventory.collect_neighbors(ip, driver)
     return inventory.decorate(store.device(ip))
+
+
+def _settle_lldp(ip: str, driver, username: str, password: str) -> None:
+    if not inventory.lldp_auto():
+        return
+    try:
+        store.save_lldp(ip, inventory.ensure_lldp(ip, driver, username, password))
+    except ssh.SshError:
+        store.save_lldp(ip, "failed")
 
 
 @router.delete("/devices/{ip}/auth")
@@ -84,5 +93,6 @@ def refresh(ip: str) -> dict:
     store.save_identity(
         ip, identity["hostname"], driver.vendor, identity["model"], identity["version"]
     )
+    _settle_lldp(ip, driver, username, password)
     inventory.collect_neighbors(ip, driver)
     return inventory.decorate(store.device(ip))

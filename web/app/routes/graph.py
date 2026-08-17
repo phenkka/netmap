@@ -11,6 +11,7 @@ ON_MAP = {"detected", "authorized", "failed"}
 def graph() -> dict:
     all_devices = [inventory.decorate(d) for d in store.devices()]
     by_hostname = {d["hostname"]: d for d in all_devices if d.get("hostname")}
+    by_ip = {d["ip"]: d for d in all_devices}
     known = inventory.capabilities()
 
     # серверы и рабочие станции на карту не идут, они остаются в списке
@@ -20,7 +21,7 @@ def graph() -> dict:
             "label": d.get("hostname") or d["ip"],
             "status": d["status"],
             "vendor": d.get("vendor") or d.get("vendor_guess") or "",
-            "type": inventory.node_type(d, known),
+            "type": inventory.node_type(d),
         }
         for d in all_devices
         if d["status"] in ON_MAP
@@ -35,7 +36,11 @@ def graph() -> dict:
 
     for link in store.neighbors():
         source = link["ip"]
-        peer = by_hostname.get(link["remote_name"])
+        # адрес управления из LLDP привязывает соседа к найденному устройству
+        # ещё до входа на него, по имени сосед находится только после входа
+        peer = by_ip.get(link.get("remote_addr") or "") or by_hostname.get(
+            link["remote_name"]
+        )
 
         if peer:
             target = peer["ip"]

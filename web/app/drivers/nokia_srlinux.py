@@ -10,6 +10,15 @@ class NokiaSrLinux(Driver):
 
     # candidate общий для всех сессий, чужую несохранённую правку видно
     pending_diff_commands = ["enter candidate", "diff"]
+
+    lldp_state_command = "info from running /system lldp"
+    lldp_enable_commands = [
+        "enter candidate",
+        "set / system lldp admin-state enable",
+        "set / system lldp management-address mgmt0.0 type [IPv4]",
+        "commit now",
+        "quit",
+    ]
     # режимов четыре: running, candidate, show, state. приглашение вида
     # --{ + candidate shared default }-- , настройка идёт только в candidate
     prompt_pattern = r"--\{[^}]*\}"
@@ -32,6 +41,13 @@ class NokiaSrLinux(Driver):
             "model": fields.get("Chassis Type", ""),
             "version": fields.get("Software Version", ""),
         }
+
+    @classmethod
+    def lldp_ready(cls, output: str) -> bool:
+        # сам LLDP включён по умолчанию, а объявление адреса управления нет
+        if "admin-state disable" in output:
+            return False
+        return "management-address" in output
 
     @classmethod
     def device_type(cls, model: str) -> str:
@@ -60,6 +76,7 @@ class NokiaSrLinux(Driver):
                     "local_port": interface,
                     "remote_name": "",
                     "remote_port": "",
+                    "remote_addr": "",
                     "capabilities": [],
                 }
                 links.append(current)
@@ -68,6 +85,8 @@ class NokiaSrLinux(Driver):
                     current["remote_name"] = line.split(None, 1)[1].strip('"')
                 elif line.startswith("port-id ") and not line.startswith("port-id-type"):
                     current["remote_port"] = line.split(None, 1)[1].strip('"')
+                elif line.startswith("management-address ") and not current["remote_addr"]:
+                    current["remote_addr"] = line.split()[1]
                 elif line.startswith("capability "):
                     current["capabilities"].append(line.split()[1])
 

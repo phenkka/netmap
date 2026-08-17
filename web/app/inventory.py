@@ -28,20 +28,22 @@ def identify(ip: str, username: str, password: str):
 
 
 def capabilities() -> dict:
-    return {
-        link["remote_name"]: link["capabilities"] or ""
-        for link in store.neighbors()
-        if link["remote_name"]
-    }
+    known: dict[str, str] = {}
+    for link in store.neighbors():
+        for key in (link["remote_name"], link.get("remote_addr")):
+            if key:
+                known[key] = link["capabilities"] or ""
+    return known
 
 
-def node_type(device: dict, known: dict) -> str:
-    # модель точнее, чем поле возможностей LLDP, но известна только после входа
+def node_type(device: dict) -> str:
+    # тип берётся из модели, а она известна только после входа. до него
+    # показываем безымянную коробку, а не догадку по возможностям LLDP
     if device.get("model"):
         driver = drivers.by_vendor(device.get("vendor") or "")
         if driver:
             return driver.device_type(device["model"])
-    return device_type(known.get(device.get("hostname") or "", ""))
+    return "device"
 
 
 def device_type(capabilities_field: str) -> str:
@@ -80,6 +82,31 @@ def collect_config(ip: str, source: str) -> dict | None:
     username, password = require_credentials(ip)
     output = ssh.run(ip, username, password, driver.config_command)
     return store.save_config(ip, driver.normalize_config(output), source)
+
+
+def lldp_auto() -> bool:
+    return store.setting("lldp_auto") != "no"
+
+
+def ensure_lldp(ip: str, driver, username: str, password: str) -> str | None:
+    """дописывает настройку LLDP и отдаёт, чем дело кончилось"""
+    if not driver.lldp_state_command or not driver.lldp_enable_commands:
+        return None
+
+    if driver.lldp_ready(ssh.run(ip, username, password, driver.lldp_state_command)):
+        return "on"
+
+    # черновик общий, наш commit применил бы чужую незаконченную правку
+    if driver.pending_diff_commands:
+        pending = driver.clean_pending_diff(
+            ssh.run_lines(ip, username, password, driver.pending_diff_commands)
+        )
+        if pending:
+            return "busy"
+
+    ssh.run_lines(ip, username, password, driver.lldp_enable_commands)
+    state = ssh.run(ip, username, password, driver.lldp_state_command)
+    return "enabled" if driver.lldp_ready(state) else "failed"
 
 
 def collect_neighbors(ip: str, driver) -> None:
