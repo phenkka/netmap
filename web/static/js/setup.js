@@ -98,9 +98,11 @@ function calm() {
   done.classList.remove("waiting");
 }
 
+// пустая сеть обходится за hosts / 512 * полсекунды, дольше двадцати секунд
+// это только /17 и крупнее
 function large(cidr) {
   const bits = Number(cidr.split("/")[1]);
-  return Number.isInteger(bits) && bits < 22;
+  return Number.isInteger(bits) && bits < 18;
 }
 
 async function finish() {

@@ -12,7 +12,12 @@ SSH_PORT = 22
 CONNECT_TIMEOUT = 1.5
 BANNER_TIMEOUT = 2.0
 CONCURRENCY = 128
+
+# проверка при настройке ждёт только рукопожатие TCP, а оно в локальной сети
+# укладывается в единицы миллисекунд. обход при опросе живёт со своим таймаутом,
+# там терять устройства нельзя
 CHECK_BATCH = 512
+CHECK_TIMEOUT = 0.5
 
 BANNER_VENDORS = [
     ("sr linux", "Nokia"),
@@ -55,6 +60,15 @@ async def scan(subnet: str) -> list[dict]:
         item["mac"] = arp.get(item["ip"])
         item["login_banner"] = banner
     return found
+
+
+async def _open(ip: str, timeout: float) -> str | None:
+    try:
+        _, writer = await asyncio.wait_for(asyncio.open_connection(ip, SSH_PORT), timeout)
+    except (OSError, asyncio.TimeoutError):
+        return None
+    writer.close()
+    return ip
 
 
 async def _probe(ip: str) -> dict | None:
@@ -141,10 +155,24 @@ async def any_open(subnet: str) -> str | None:
     hosts = [str(h) for h in network.hosts() if str(h) not in own]
 
     for start in range(0, len(hosts), CHECK_BATCH):
-        batch = hosts[start : start + CHECK_BATCH]
-        for item in await asyncio.gather(*(_probe(ip) for ip in batch)):
-            if item:
-                return item["ip"]
+        tasks = [
+            asyncio.create_task(_open(ip, CHECK_TIMEOUT))
+            for ip in hosts[start : start + CHECK_BATCH]
+        ]
+        alive = None
+        try:
+            # ответ первого не ждёт остальных: пакет из сотен проверок
+            # целиком длится ровно таймаут, а живой узел отвечает сразу
+            for done in asyncio.as_completed(tasks):
+                alive = await done
+                if alive:
+                    break
+        finally:
+            for task in tasks:
+                task.cancel()
+            await asyncio.gather(*tasks, return_exceptions=True)
+        if alive:
+            return alive
     return None
 
 
