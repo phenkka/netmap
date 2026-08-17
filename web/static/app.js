@@ -14,6 +14,7 @@ import { clearPanel, showDevice } from "./js/tree.js";
 import { fitActive, openTerminal } from "./js/terminal.js";
 import { refreshAll } from "./js/load.js";
 import { DOUBLE_TAP, FOCUS_WAIT, HOVER_SCALE, REFRESH_EVERY } from "./js/const.js";
+import "./js/session.js";
 import "./js/theme.js";
 import "./js/view.js";
 
@@ -74,11 +75,15 @@ window.addEventListener("resize", () => {
 
 // обход сети ведёт сервер в фоне, страница только читает найденное
 async function firstScan() {
+  const field = document.getElementById("subnet");
   try {
-    await api("/api/scan", {
-      method: "POST",
-      body: JSON.stringify({ subnet: document.getElementById("subnet").value.trim() }),
-    });
+    field.value = (await api("/api/settings")).subnet;
+    if (field.value) {
+      await api("/api/scan", {
+        method: "POST",
+        body: JSON.stringify({ subnet: field.value }),
+      });
+    }
   } catch (error) {
     setStatus(error.message);
   }

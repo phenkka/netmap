@@ -1,0 +1,76 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>netmap</title>
+<link rel="icon" href="/static/favicon.svg">
+<script>
+  try {
+    var saved = localStorage.getItem("netmap-theme");
+    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="entrance">
+
+<div id="backdrop" aria-hidden="true">
+  <header>
+    <span class="brand">netmap</span>
+    <span class="mock-field"></span>
+  </header>
+  <main>
+    <aside>
+      <span class="mock-row head"></span>
+      <span class="mock-row"></span>
+      <span class="mock-row"></span>
+      <span class="mock-row"></span>
+    </aside>
+    <section id="map"></section>
+  </main>
+</div>
+
+<div id="veil"></div>
+
+<section id="wizard">
+
+  <div class="step on">
+    <span class="brand">netmap</span>
+    <p class="lead">Система управления сетевым оборудованием для небольших и средних компаний</p>
+    <button type="button" class="go next">Начать настройку</button>
+  </div>
+
+  <form class="step" novalidate>
+    <p class="title">Администратор</p>
+    <p class="lead">Учётная запись, под которой вы будете входить в продукт</p>
+    <input id="login" placeholder="Логин" autocomplete="username" spellcheck="false">
+    <input id="password" type="password" placeholder="Пароль" autocomplete="new-password">
+    <input id="again" type="password" placeholder="Пароль ещё раз" autocomplete="new-password">
+    <div class="pair">
+      <button type="button" class="back">Назад</button>
+      <button type="submit" class="go">Дальше</button>
+    </div>
+  </form>
+
+  <form class="step" novalidate>
+    <p class="title">Сеть управления</p>
+    <p class="lead">Подсеть, в которой продукт будет искать оборудование</p>
+    <input id="subnet" placeholder="10.10.10.0/24" spellcheck="false">
+    <p class="hint" id="whence" hidden>
+      Продукт подключён к этим сетям напрямую, по своим интерфейсам.
+      Оборудование обычно стоит в одной из них.
+    </p>
+    <div id="found"></div>
+    <div class="pair">
+      <button type="button" class="back">Назад</button>
+      <button type="submit" class="go" id="done">Проверить и продолжить</button>
+    </div>
+  </form>
+
+  <div id="dots"><i class="on"></i><i></i><i></i></div>
+  <div id="problem"></div>
+</section>
+
+<script type="module" src="/static/js/setup.js"></script>
+</body>
+</html>

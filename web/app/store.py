@@ -45,6 +45,18 @@ CREATE TABLE IF NOT EXISTS configs (
 );
 
 CREATE INDEX IF NOT EXISTS configs_by_device ON configs (ip, id DESC);
+
+CREATE TABLE IF NOT EXISTS settings (
+    key   TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS users (
+    login         TEXT PRIMARY KEY,
+    password_hash TEXT NOT NULL,
+    role          TEXT NOT NULL DEFAULT 'admin',
+    created_at    TEXT NOT NULL
+);
 """
 
 _pool = ConnectionPool(
@@ -225,6 +237,44 @@ def _unpack(row: dict | None) -> dict | None:
         return None
     row["text"] = zlib.decompress(row["text"]).decode("utf-8")
     return row
+
+
+def setting(key: str) -> str | None:
+    with _pool.connection() as conn:
+        row = conn.execute("SELECT value FROM settings WHERE key = %s", (key,)).fetchone()
+    return row["value"] if row else None
+
+
+def save_setting(key: str, value: str) -> None:
+    with _pool.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO settings (key, value) VALUES (%s, %s)
+            ON CONFLICT (key) DO UPDATE SET value = EXCLUDED.value
+            """,
+            (key, value),
+        )
+
+
+def user_count() -> int:
+    with _pool.connection() as conn:
+        return conn.execute("SELECT count(*) AS total FROM users").fetchone()["total"]
+
+
+def user(login: str) -> dict | None:
+    with _pool.connection() as conn:
+        return conn.execute("SELECT * FROM users WHERE login = %s", (login,)).fetchone()
+
+
+def save_user(login: str, password_hash: str, role: str) -> None:
+    with _pool.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO users (login, password_hash, role, created_at)
+            VALUES (%s, %s, %s, %s)
+            """,
+            (login, password_hash, role, _now()),
+        )
 
 
 def set_credentials(ip: str, username: str, password: str) -> None:

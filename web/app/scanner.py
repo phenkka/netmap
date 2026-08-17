@@ -12,6 +12,7 @@ SSH_PORT = 22
 CONNECT_TIMEOUT = 1.5
 BANNER_TIMEOUT = 2.0
 CONCURRENCY = 128
+CHECK_BATCH = 512
 
 BANNER_VENDORS = [
     ("sr linux", "Nokia"),
@@ -131,6 +132,60 @@ def local_addresses() -> set[str]:
         for line in output.splitlines()
         if len(line.split()) > 3
     }
+
+
+async def any_open(subnet: str) -> str | None:
+    """первый адрес с открытым 22 портом, дальше сеть не обходится"""
+    network = ipaddress.ip_network(subnet, strict=False)
+    own = await asyncio.to_thread(local_addresses)
+    hosts = [str(h) for h in network.hosts() if str(h) not in own]
+
+    for start in range(0, len(hosts), CHECK_BATCH):
+        batch = hosts[start : start + CHECK_BATCH]
+        for item in await asyncio.gather(*(_probe(ip) for ip in batch)):
+            if item:
+                return item["ip"]
+    return None
+
+
+def route_to(ip: str) -> str | None:
+    """через какой интерфейс машина пойдёт к адресу, None если пути нет"""
+    try:
+        result = subprocess.run(
+            ["ip", "route", "get", ip], capture_output=True, text=True, timeout=5
+        )
+    except (OSError, subprocess.SubprocessError):
+        return None
+    if result.returncode != 0:
+        return None
+    parts = result.stdout.split()
+    return parts[parts.index("dev") + 1] if "dev" in parts else None
+
+
+def local_networks() -> list[str]:
+    """подсети, к которым машина подключена напрямую"""
+    try:
+        output = subprocess.run(
+            ["ip", "-o", "-4", "addr", "show", "scope", "global"],
+            capture_output=True,
+            text=True,
+            timeout=5,
+        ).stdout
+    except (OSError, subprocess.SubprocessError):
+        return []
+
+    found = []
+    for line in output.splitlines():
+        parts = line.split()
+        if len(parts) < 4:
+            continue
+        try:
+            network = str(ipaddress.ip_interface(parts[3]).network)
+        except ValueError:
+            continue
+        if network not in found:
+            found.append(network)
+    return found
 
 
 def arp_table() -> dict[str, str]:

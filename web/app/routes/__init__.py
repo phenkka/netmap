@@ -1,3 +1,5 @@
-from . import configs, devices, graph, terminal
+from . import auth, configs, devices, graph, terminal
 
-ALL = [devices.router, configs.router, graph.router, terminal.router]
+PUBLIC = [auth.router]
+GUARDED = [devices.router, configs.router, graph.router]
+SOCKETS = [terminal.router]

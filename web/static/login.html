@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="utf-8">
+<title>netmap</title>
+<link rel="icon" href="/static/favicon.svg">
+<script>
+  try {
+    var saved = localStorage.getItem("netmap-theme");
+    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+  } catch (e) {}
+</script>
+<link rel="stylesheet" href="/static/style.css">
+</head>
+<body class="entrance">
+
+<div id="backdrop" aria-hidden="true">
+  <header>
+    <span class="brand">netmap</span>
+    <span class="mock-field"></span>
+  </header>
+  <main>
+    <aside>
+      <span class="mock-row head"></span>
+      <span class="mock-row"></span>
+      <span class="mock-row"></span>
+      <span class="mock-row"></span>
+    </aside>
+    <section id="map"></section>
+  </main>
+</div>
+
+<div id="veil"></div>
+
+<form id="enter">
+  <span class="brand">netmap</span>
+  <p id="hint">Авторизация</p>
+  <input id="login" placeholder="Логин" autocomplete="username" spellcheck="false" required>
+  <input id="password" type="password" placeholder="Пароль" autocomplete="current-password" required>
+  <button type="submit" id="go">Войти</button>
+  <div id="problem"></div>
+</form>
+
+<script type="module" src="/static/js/login.js"></script>
+</body>
+</html>

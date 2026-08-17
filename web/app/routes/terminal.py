@@ -6,7 +6,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from .. import drivers, inventory, ssh, store
+from .. import auth, drivers, inventory, ssh, store
 
 router = APIRouter(prefix="/api/devices")
 
@@ -19,6 +19,11 @@ TAIL = 400
 @router.websocket("/{ip}/terminal")
 async def terminal(socket: WebSocket, ip: str) -> None:
     await socket.accept()
+
+    if not auth.by_token(socket.cookies.get(auth.COOKIE)):
+        await _notify(socket, "error", text="требуется вход")
+        await socket.close()
+        return
 
     credentials = store.credentials(ip)
     if not credentials:

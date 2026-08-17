@@ -3,23 +3,25 @@ import asyncio
 from . import scanner, store
 
 SCAN_EVERY = 60
-
-# подсеть задаётся первым сканированием из браузера, до него обходить нечего
-_subnet: str | None = None
+SUBNET = "subnet"
 
 
-def remember(subnet: str) -> None:
-    global _subnet
-    _subnet = subnet
+def remember(value: str) -> None:
+    store.save_setting(SUBNET, value)
+
+
+def subnet() -> str | None:
+    return store.setting(SUBNET)
 
 
 async def run() -> None:
     while True:
         await asyncio.sleep(SCAN_EVERY)
-        if not _subnet:
+        target = subnet()
+        if not target:
             continue
         try:
-            for item in await scanner.scan(_subnet):
+            for item in await scanner.scan(target):
                 store.save_detected(
                     item["ip"],
                     item.get("mac"),

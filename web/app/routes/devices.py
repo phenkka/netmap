@@ -30,6 +30,11 @@ async def scan(request: ScanRequest) -> dict:
     return {"found": len(found), "devices": store.devices()}
 
 
+@router.get("/settings")
+def settings() -> dict:
+    return {"subnet": watch.subnet() or ""}
+
+
 @router.get("/devices")
 def devices() -> dict:
     known = inventory.capabilities()
