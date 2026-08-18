@@ -6,6 +6,8 @@ from pathlib import Path
 
 import paramiko
 
+from . import ssh
+
 OUI_FILE = Path(__file__).resolve().parent / "oui.csv"
 
 SSH_PORT = 22
@@ -51,15 +53,23 @@ async def scan(subnet: str) -> list[dict]:
     arp = await asyncio.to_thread(arp_table)
     found = [r for r in results if r]
 
-    loop = asyncio.get_running_loop()
-    banners = await asyncio.gather(
-        *(loop.run_in_executor(None, login_banner, item["ip"]) for item in found)
-    )
+    banners = await _banners([item["ip"] for item in found])
 
     for item, banner in zip(found, banners):
         item["mac"] = arp.get(item["ip"])
         item["login_banner"] = banner
     return found
+
+
+async def _banners(ips: list[str]) -> list[str]:
+    """приветствие читается по SSH, поэтому пачками, как и остальной опрос"""
+    limit = asyncio.Semaphore(ssh.AT_ONCE)
+
+    async def guarded(ip: str) -> str:
+        async with limit:
+            return await asyncio.to_thread(login_banner, ip)
+
+    return list(await asyncio.gather(*(guarded(ip) for ip in ips)))
 
 
 async def _open(ip: str, timeout: float) -> str | None:

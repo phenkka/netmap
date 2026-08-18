@@ -75,35 +75,60 @@ async def catch_up() -> None:
     доступ, перечитываем соседей и снимаем конфигурации. Расхождения с последним
     сохранённым состоянием становятся новыми версиями в истории.
     """
-    for device in store.devices():
-        credentials = store.credentials(device["ip"])
-        if not credentials or not inventory.online(device):
-            continue
-        try:
-            await asyncio.to_thread(_recheck, device["ip"], *credentials)
-        except (ssh.SshError, OSError, HTTPException, inventory.NotNetworkDevice) as exc:
-            store.save_error(device["ip"], str(exc) or "устройство не отвечает")
-
-
-def _recheck(ip: str, username: str, password: str) -> None:
-    driver, identity = inventory.identify(ip, username, password)
-    store.save_identity(
-        ip, identity["hostname"], driver.vendor, identity["model"], identity["version"]
-    )
-    inventory.collect_neighbors(ip, driver)
-    inventory.collect_config(ip, "startup")
+    await _spread(_recheck, _ready())
 
 
 async def refresh_neighbors() -> None:
     """о новом устройстве рассказывают уже авторизованные соседи"""
-    for device in store.devices():
-        driver = drivers.by_vendor(device.get("vendor") or "")
-        if not driver or not store.credentials(device["ip"]):
-            continue
-        # в недоступное устройство SSH уходит на весь таймаут и держит обход
-        if not inventory.online(device):
-            continue
-        try:
-            await asyncio.to_thread(inventory.collect_neighbors, device["ip"], driver)
-        except (ssh.SshError, OSError):
-            continue
+    await _spread(_reread_neighbors, _ready())
+
+
+def _ready() -> list[dict]:
+    """кого есть чем и куда опрашивать: пароль в памяти, устройство отвечает"""
+    # в недоступное устройство SSH уходит на весь таймаут и держит пачку
+    return [
+        device
+        for device in store.devices()
+        if store.credentials(device["ip"]) and inventory.online(device)
+    ]
+
+
+async def _spread(job, devices: list[dict]) -> None:
+    """опрос идёт пачками, размер пачки задаёт ssh.AT_ONCE"""
+    limit = asyncio.Semaphore(ssh.AT_ONCE)
+
+    async def guarded(device: dict) -> None:
+        async with limit:
+            await asyncio.to_thread(job, device)
+
+    await asyncio.gather(*(guarded(device) for device in devices))
+
+
+def _recheck(device: dict) -> None:
+    ip = device["ip"]
+    credentials = store.credentials(ip)
+    if not credentials:
+        return
+    try:
+        driver, identity = inventory.identify(ip, *credentials)
+        store.save_identity(
+            ip,
+            identity["hostname"],
+            driver.vendor,
+            identity["model"],
+            identity["version"],
+        )
+        inventory.collect_neighbors(ip, driver)
+        inventory.collect_config(ip, "startup")
+    except (ssh.SshError, OSError, HTTPException, inventory.NotNetworkDevice) as exc:
+        store.save_error(ip, str(exc) or "устройство не отвечает")
+
+
+def _reread_neighbors(device: dict) -> None:
+    driver = drivers.by_vendor(device.get("vendor") or "")
+    if not driver:
+        return
+    try:
+        inventory.collect_neighbors(device["ip"], driver)
+    except (ssh.SshError, OSError):
+        pass
