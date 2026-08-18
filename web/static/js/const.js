@@ -7,6 +7,9 @@ export const PORT_OFFSET = 55;
 export const ICON_BODY = 0.72;
 export const GAP = 10;
 
+// недоступное устройство погашено, но остаётся читаемым
+export const OFFLINE_DIM = 0.5;
+
 export const HOVER_SCALE = 1.16;
 export const PICKED_SCALE = 1.08;
 export const TAP_SCALE = 1.26;

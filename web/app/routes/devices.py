@@ -1,7 +1,7 @@
 from fastapi import APIRouter, HTTPException
 from pydantic import BaseModel
 
-from .. import inventory, scanner, ssh, store, watch
+from .. import inventory, ssh, store, watch
 
 router = APIRouter(prefix="/api")
 
@@ -18,16 +18,15 @@ class AuthRequest(BaseModel):
 @router.post("/scan")
 async def scan(request: ScanRequest) -> dict:
     try:
-        found = await scanner.scan(request.subnet)
+        found = await watch.sweep(request.subnet)
     except ValueError as exc:
         raise HTTPException(400, f"неверная подсеть: {exc}")
 
     watch.remember(request.subnet)
-    for item in found:
-        store.save_detected(
-            item["ip"], item.get("mac"), item.get("banner"), item.get("login_banner")
-        )
-    return {"found": len(found), "devices": store.devices()}
+    return {
+        "found": len(found),
+        "devices": [inventory.decorate(d) for d in store.devices()],
+    }
 
 
 @router.get("/settings")

@@ -13,6 +13,7 @@
   --accent-text: #ffffff;
   --pos: #34c759;
   --neg: #f4212e;
+  --off: #6e7681;
   --grid: rgba(255, 255, 255, 0.035);
   --grid-strong: rgba(255, 255, 255, 0.07);
 }
@@ -29,6 +30,7 @@
   --accent-text: #ffffff;
   --pos: #2bae4c;
   --neg: #d32029;
+  --off: #98a2b3;
   --grid: rgba(15, 20, 25, 0.05);
   --grid-strong: rgba(15, 20, 25, 0.1);
 }
@@ -820,6 +822,13 @@ button.wide {
 .hint {
   color: var(--muted);
   font-size: 11px;
+  line-height: 1.45;
+  margin: 0 0 10px;
+}
+
+.gone {
+  color: var(--off);
+  font-size: 12px;
   line-height: 1.45;
   margin: 0 0 10px;
 }

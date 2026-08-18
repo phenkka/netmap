@@ -19,7 +19,7 @@ def graph() -> dict:
         {
             "id": d["ip"],
             "label": d.get("hostname") or d["ip"],
-            "status": d["status"],
+            "status": d["state"],
             "vendor": d.get("vendor") or d.get("vendor_guess") or "",
             "type": inventory.node_type(d),
         }

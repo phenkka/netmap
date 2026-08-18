@@ -2,7 +2,9 @@ export function themeColor(name) {
   return getComputedStyle(document.documentElement).getPropertyValue(name).trim();
 }
 
+// три состояния: доступно и есть доступ, доступно без доступа, не отвечает
 export function statusColor(status) {
+  if (status === "offline") return themeColor("--off");
   return themeColor(status === "authorized" ? "--pos" : "--neg");
 }
 

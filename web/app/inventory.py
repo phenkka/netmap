@@ -9,14 +9,25 @@ class NotNetworkDevice(Exception):
     pass
 
 
+# одиночный потерянный пакет не должен красить карту, ждём три обхода подряд
+OFFLINE_AFTER = 3
+
+
 def decorate(device: dict) -> dict:
     device = dict(device)
     device["vendor_guess"] = scanner.vendor_by_mac(
         device.get("mac")
     ) or scanner.vendor_by_banner(device.get("banner"), device.get("login_banner"))
     device["authorized"] = device["status"] == "authorized"
+    device["online"] = device.pop("misses", 0) < OFFLINE_AFTER
+    # состояние для интерфейса: недоступность важнее того, есть ли доступ
+    device["state"] = device["status"] if device["online"] else "offline"
     device["neighbors"] = store.neighbors_of(device["ip"])
     return device
+
+
+def online(device: dict) -> bool:
+    return (device.get("misses") or 0) < OFFLINE_AFTER
 
 
 def identify(ip: str, username: str, password: str):

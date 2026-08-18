@@ -5,7 +5,7 @@ import { ICONS } from "./icons.js";
 import { api } from "./api.js";
 import { cy } from "./cy.js";
 import { state } from "./state.js";
-import { themeColor } from "./colors.js";
+import { statusColor } from "./colors.js";
 import { relayout, showPorts, sizeNode } from "./map.js";
 import { openTerminal } from "./terminal.js";
 import { refreshAll } from "./load.js";
@@ -83,9 +83,7 @@ function deviceRow(device) {
   row.className = "row" + (device.ip === state.selected ? " picked" : "");
 
   const icon = document.createElement("img");
-  icon.src = (ICONS[device.type] || ICONS.unknown)(
-    device.authorized ? themeColor("--pos") : themeColor("--neg")
-  );
+  icon.src = (ICONS[device.type] || ICONS.unknown)(statusColor(device.state));
 
   const name = document.createElement("span");
   name.className = "name";
@@ -106,6 +104,12 @@ function deviceRow(device) {
 
   item.append(row, fold);
   return item;
+}
+
+function seenAt(at) {
+  return new Date(at).toLocaleString("ru", {
+    day: "2-digit", month: "2-digit", hour: "2-digit", minute: "2-digit",
+  });
 }
 
 function field(label, value) {
@@ -131,6 +135,15 @@ function deviceDetails(device) {
   if (device.model) list.append(...field("Модель", device.model));
   if (device.version) list.append(...field("Версия", device.version));
   box.append(list);
+
+  if (device.online === false) {
+    const gone = document.createElement("p");
+    gone.className = "gone";
+    gone.textContent = device.last_seen
+      ? `Не отвечает на обходе сети. Последний ответ ${seenAt(device.last_seen)}.`
+      : "Не отвечает на обходе сети.";
+    box.append(gone);
+  }
 
   if (LLDP[device.lldp]) {
     const note = document.createElement("p");

@@ -22,11 +22,13 @@ CREATE TABLE IF NOT EXISTS devices (
     version      TEXT,
     error        TEXT,
     lldp         TEXT,
+    misses       INTEGER NOT NULL DEFAULT 0,
     first_seen   TEXT,
     last_seen    TEXT
 );
 
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS lldp TEXT;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS misses INTEGER NOT NULL DEFAULT 0;
 
 CREATE TABLE IF NOT EXISTS neighbors (
     ip           TEXT NOT NULL,
@@ -103,9 +105,20 @@ def save_detected(
                 mac = EXCLUDED.mac,
                 banner = EXCLUDED.banner,
                 login_banner = EXCLUDED.login_banner,
+                misses = 0,
                 last_seen = EXCLUDED.last_seen
             """,
             (ip, mac, banner, login_banner, _now(), _now()),
+        )
+
+
+def bump_misses(ips: list[str]) -> None:
+    """устройство не ответило на обходе, счётчик сбросит первый же ответ"""
+    if not ips:
+        return
+    with _pool.connection() as conn:
+        conn.execute(
+            "UPDATE devices SET misses = misses + 1 WHERE ip = ANY(%s)", (ips,)
         )
 
 

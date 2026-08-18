@@ -4,7 +4,7 @@
 import { ICONS } from "./icons.js";
 import { api } from "./api.js";
 import { state } from "./state.js";
-import { themeColor } from "./colors.js";
+import { statusColor } from "./colors.js";
 import { PENDING_EVERY } from "./const.js";
 
 const panel = document.getElementById("panel");
@@ -36,9 +36,7 @@ export async function openConfig(ip, locked = false) {
   lockConfig(locked);
   const device = state.devices.find((item) => item.ip === ip);
   configName.textContent = device?.hostname || ip;
-  configIcon.src = (ICONS[device?.type] || ICONS.unknown)(
-    device?.authorized ? themeColor("--pos") : themeColor("--neg")
-  );
+  configIcon.src = (ICONS[device?.type] || ICONS.unknown)(statusColor(device?.state));
   configIp = ip;
   pickedVersion = null;
   panel.classList.add("config");

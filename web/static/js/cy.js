@@ -1,6 +1,13 @@
 import { ICONS } from "./icons.js";
 import { statusColor, themeColor } from "./colors.js";
-import { ICON_SIZE, NODE_FONT, PORT_FONT, PORT_OFFSET, EDGE_FADE } from "./const.js";
+import {
+  ICON_SIZE,
+  NODE_FONT,
+  PORT_FONT,
+  PORT_OFFSET,
+  EDGE_FADE,
+  OFFLINE_DIM,
+} from "./const.js";
 
 export const cy = cytoscape({
   container: document.getElementById("map"),
@@ -62,12 +69,17 @@ export const cy = cytoscape({
   ],
 });
 
-// неавторизованные моргают: связей у них нет, пока не введён пароль
+// неавторизованные моргают: связей у них нет, пока не введён пароль.
+// недоступные не моргают, они пароля не ждут, а просто погашены
 let bright = true;
 setInterval(() => {
   bright = !bright;
   cy.nodes().forEach((node) => {
-    const dim = node.data("status") !== "authorized";
-    node.style("opacity", dim && !bright ? 0.35 : 1);
+    const status = node.data("status");
+    if (status === "offline") {
+      node.style("opacity", OFFLINE_DIM);
+      return;
+    }
+    node.style("opacity", status !== "authorized" && !bright ? 0.35 : 1);
   });
 }, 600);
