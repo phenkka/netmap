@@ -6,8 +6,10 @@
 <link rel="icon" href="/static/favicon.svg">
 <script>
   try {
-    var saved = localStorage.getItem("netmap-theme");
-    if (saved === "light") document.documentElement.setAttribute("data-theme", "light");
+    var saved = localStorage.getItem("netmap-theme") || "system";
+    var light = saved === "light" ||
+      (saved === "system" && matchMedia("(prefers-color-scheme: light)").matches);
+    if (light) document.documentElement.setAttribute("data-theme", "light");
   } catch (e) {}
 </script>
 <link rel="stylesheet" href="/static/style.css">

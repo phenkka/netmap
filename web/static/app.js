@@ -10,11 +10,11 @@ import {
   sizeNode,
   syncGrid,
 } from "./js/map.js";
-import { clearPanel, showDevice } from "./js/tree.js";
+import { clearPanel, renderList, showDevice } from "./js/tree.js";
 import { fitActive, openTerminal } from "./js/terminal.js";
 import { refreshAll } from "./js/load.js";
 import { DOUBLE_TAP, FOCUS_WAIT, HOVER_SCALE, REFRESH_EVERY } from "./js/const.js";
-import "./js/session.js";
+import { showAccount } from "./js/settings.js";
 import "./js/theme.js";
 import "./js/view.js";
 
@@ -75,13 +75,16 @@ window.addEventListener("resize", () => {
 
 // обход сети ведёт сервер в фоне, страница только читает найденное
 async function firstScan() {
-  const field = document.getElementById("subnet");
   try {
-    field.value = (await api("/api/settings")).subnet;
-    if (field.value) {
+    const settings = await api("/api/settings");
+    state.subnet = settings.subnet;
+    showAccount(settings);
+    // список рисуется раньше, чем приходят настройки, и остаётся без имени сети
+    renderList();
+    if (settings.subnet) {
       await api("/api/scan", {
         method: "POST",
-        body: JSON.stringify({ subnet: field.value }),
+        body: JSON.stringify({ subnet: settings.subnet }),
       });
     }
   } catch (error) {

@@ -29,11 +29,6 @@ async def scan(request: ScanRequest) -> dict:
     }
 
 
-@router.get("/settings")
-def settings() -> dict:
-    return {"subnet": watch.subnet() or ""}
-
-
 @router.get("/devices")
 def devices() -> dict:
     result = []

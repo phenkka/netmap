@@ -1,31 +1,54 @@
+// тема: системная, тёмная или светлая. выбор хранится, а не вычисляется каждый раз
+
 import { cy } from "./cy.js";
 import { fadeTerminals } from "./terminal.js";
 import { THEME_FADE } from "./const.js";
 
-const themeButton = document.getElementById("theme");
+const KEY = "netmap-theme";
+const CHOICES = ["system", "dark", "light"];
+const system = window.matchMedia("(prefers-color-scheme: light)");
 
-export function applyTheme(light) {
+export function themeChoice() {
+  let saved = null;
+  try {
+    saved = localStorage.getItem(KEY);
+  } catch (error) {
+    /* инкогнито, остаёмся на системной */
+  }
+  return CHOICES.includes(saved) ? saved : "system";
+}
+
+export function themeIsLight(choice = themeChoice()) {
+  return choice === "light" || (choice === "system" && system.matches);
+}
+
+export function applyTheme(choice) {
+  try {
+    localStorage.setItem(KEY, choice);
+  } catch (error) {
+    /* режим инкогнито, тема просто не запомнится */
+  }
+  paint(themeIsLight(choice));
+}
+
+function paint(light) {
   const root = document.documentElement;
   if (light) root.setAttribute("data-theme", "light");
   else root.removeAttribute("data-theme");
 
-  themeButton.title = light ? "Включить тёмную тему" : "Включить светлую тему";
-  try {
-    localStorage.setItem("netmap-theme", light ? "light" : "dark");
-  } catch (error) {
-    /* режим инкогнито, тема просто не запомнится */
-  }
-
   fadeTerminals(light);
 
-  // холст перерисовываем несколько раз, чтобы не отставал от панелей
-  const started = Date.now();
-  const timer = setInterval(() => {
+  // холст цвета из css сам не подхватывает, поэтому перерисовываем его
+  // весь переход, кадр за кадром
+  const started = performance.now();
+  const step = (now) => {
     cy.style().update();
-    if (Date.now() - started > THEME_FADE) clearInterval(timer);
-  }, 40);
+    if (now - started < THEME_FADE) requestAnimationFrame(step);
+  };
+  requestAnimationFrame(step);
 }
 
-themeButton.addEventListener("click", () =>
-  applyTheme(document.documentElement.getAttribute("data-theme") !== "light")
-);
+// пока выбрана системная тема, идём за системой
+system.addEventListener("change", () => {
+  if (themeChoice() === "system") paint(system.matches);
+});

@@ -1,7 +1,101 @@
 /* :root держит тёмную тему, [data-theme="light"] её перекрывает.
    тема ставится на <html> до первой отрисовки, иначе мигает светлым */
 
+/* цвета объявлены типом, иначе переменная меняется скачком и переход
+   по ней не идёт. так тема переливается целиком: панели, кнопки и карта */
+@property --bg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #030712;
+}
+
+@property --bg-elev {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1a1f23;
+}
+
+@property --bg-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #242b32;
+}
+
+@property --border {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1f2937;
+}
+
+@property --text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f9fafb;
+}
+
+@property --muted {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #8b949e;
+}
+
+@property --accent {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #1652f0;
+}
+
+@property --accent-hover {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #4071f3;
+}
+
+@property --accent-text {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #ffffff;
+}
+
+@property --pos {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #34c759;
+}
+
+@property --neg {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #f4212e;
+}
+
+@property --off {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: #6e7681;
+}
+
+@property --veil {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(3, 7, 18, 0.55);
+}
+
+@property --grid {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 255, 255, 0.035);
+}
+
+@property --grid-strong {
+  syntax: "<color>";
+  inherits: true;
+  initial-value: rgba(255, 255, 255, 0.07);
+}
+
 :root {
+  --fade: 260ms cubic-bezier(0.4, 0, 0.2, 1);
+  --sheet-fade: 200ms;
   --bg: #030712;
   --bg-elev: #1a1f23;
   --bg-hover: #242b32;
@@ -14,8 +108,25 @@
   --pos: #34c759;
   --neg: #f4212e;
   --off: #6e7681;
+  --veil: rgba(3, 7, 18, 0.55);
   --grid: rgba(255, 255, 255, 0.035);
   --grid-strong: rgba(255, 255, 255, 0.07);
+
+  transition: --bg var(--fade),
+    --bg-elev var(--fade),
+    --bg-hover var(--fade),
+    --border var(--fade),
+    --text var(--fade),
+    --muted var(--fade),
+    --accent var(--fade),
+    --accent-hover var(--fade),
+    --accent-text var(--fade),
+    --pos var(--fade),
+    --neg var(--fade),
+    --off var(--fade),
+    --veil var(--fade),
+    --grid var(--fade),
+    --grid-strong var(--fade);
 }
 
 [data-theme="light"] {
@@ -31,12 +142,18 @@
   --pos: #2bae4c;
   --neg: #d32029;
   --off: #98a2b3;
+  --veil: rgba(15, 20, 25, 0.35);
   --grid: rgba(15, 20, 25, 0.05);
   --grid-strong: rgba(15, 20, 25, 0.1);
 }
 
 * {
   box-sizing: border-box;
+}
+
+/* display на элементе перебивает атрибут hidden, поэтому правило общее */
+[hidden] {
+  display: none !important;
 }
 
 body {
@@ -48,7 +165,6 @@ body {
   color: var(--text);
   font: 15px/1.4 -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto,
     Helvetica, Arial, sans-serif;
-  transition: background-color 0.2s ease, color 0.2s ease;
 }
 
 header {
@@ -58,7 +174,6 @@ header {
   padding: 10px 20px;
   border-bottom: 1px solid var(--border);
   background: var(--bg);
-  transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
 .brand {
@@ -120,33 +235,6 @@ button.secondary {
   color: var(--muted);
   margin-left: auto;
   font-size: 13px;
-}
-
-/* кнопка темы, значок переключает css */
-#theme,
-#leave {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  width: 36px;
-  height: 36px;
-  padding: 0;
-  border-radius: 9999px;
-  border: 1px solid var(--border);
-  background: transparent;
-  color: var(--text);
-  flex-shrink: 0;
-}
-
-#theme:hover,
-#leave:hover {
-  background: var(--bg-hover);
-}
-
-#theme svg,
-#leave svg {
-  width: 18px;
-  height: 18px;
 }
 
 body.entrance {
@@ -217,12 +305,6 @@ body.entrance {
   z-index: 1;
   background: var(--bg);
   opacity: 0.35;
-}
-
-#enter[hidden],
-#restore[hidden],
-#dots[hidden] {
-  display: none;
 }
 
 #enter,
@@ -408,18 +490,6 @@ body.entrance {
   text-align: center;
   color: var(--neg);
   font-size: 13px;
-}
-
-#theme .icon-sun {
-  display: none;
-}
-
-[data-theme="light"] #theme .icon-sun {
-  display: block;
-}
-
-[data-theme="light"] #theme .icon-moon {
-  display: none;
 }
 
 main {
@@ -1066,4 +1136,339 @@ table.neighbors td:last-child {
   border-radius: 12px;
   user-select: all;
   overflow-wrap: anywhere;
+}
+
+/* учётная запись в шапке, она же вход в настройки */
+#account {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+  padding: 4px 14px 4px 4px;
+  border-radius: 9999px;
+  border: 1px solid var(--border);
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+}
+
+#account:hover {
+  background: var(--bg-hover);
+}
+
+.avatar {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 50%;
+  background: var(--accent);
+  color: var(--accent-text);
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+#settings[hidden] {
+  display: none;
+}
+
+#settings {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--sheet-fade) ease;
+}
+
+#settings.on {
+  opacity: 1;
+}
+
+#settings-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--veil);
+  backdrop-filter: blur(7px);
+}
+
+#sheet {
+  position: relative;
+  display: grid;
+  grid-template-columns: 200px minmax(0, 1fr);
+  width: min(880px, 94vw);
+  height: min(580px, 88vh);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+  transition: transform var(--sheet-fade) cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity var(--sheet-fade) ease;
+}
+
+#settings.on #sheet {
+  opacity: 1;
+  transform: none;
+}
+
+#sheet nav {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  padding: 20px 12px;
+  background: var(--bg-elev);
+  border-right: 1px solid var(--border);
+}
+
+#sheet-title {
+  margin: 0 0 12px 10px;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+#sheet .tab {
+  padding: 8px 12px;
+  border: 0;
+  border-radius: 10px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 14px;
+  text-align: left;
+}
+
+#sheet .tab:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+#sheet .tab.on {
+  background: var(--bg-hover);
+  color: var(--text);
+  font-weight: 600;
+}
+
+#sheet .panes {
+  position: relative;
+  padding: 22px 26px 18px;
+  overflow-y: auto;
+}
+
+#sheet-close {
+  position: absolute;
+  top: 14px;
+  right: 16px;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+#sheet-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+#sheet .pane {
+  display: none;
+}
+
+#sheet .pane.on {
+  display: block;
+}
+
+#sheet h2 {
+  margin: 0;
+  font-size: 19px;
+}
+
+#sheet .line {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 20px;
+  padding: 16px 0;
+  border-bottom: 1px solid var(--border);
+}
+
+#sheet .line.wide {
+  flex-direction: column;
+  align-items: stretch;
+  gap: 10px;
+}
+
+#sheet .what {
+  display: flex;
+  flex: 1;
+  min-width: 0;
+  flex-direction: column;
+  gap: 4px;
+  max-width: 62ch;
+}
+
+#sheet .name {
+  font-size: 14px;
+  font-weight: 600;
+}
+
+#sheet .note {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--muted);
+}
+
+#sheet .value {
+  font-size: 14px;
+  color: var(--muted);
+}
+
+#sheet form {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+#sheet form input {
+  flex: 1 1 190px;
+}
+
+#keep-form {
+  flex-direction: column;
+  align-items: flex-start;
+  padding: 14px 0 4px;
+}
+
+#sheet #keep-form input {
+  flex: none;
+  width: min(320px, 100%);
+}
+
+#sheet #keep-form button {
+  flex: none;
+}
+
+#recovery {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  padding-top: 8px;
+}
+
+#sheet-problem {
+  min-height: 18px;
+  margin: 14px 0 0;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+#sheet-problem.bad {
+  color: var(--neg);
+}
+
+button.danger {
+  flex: none;
+  border-color: var(--neg);
+  background: transparent;
+  color: var(--neg);
+}
+
+button.danger:hover {
+  background: var(--neg);
+  color: var(--accent-text);
+}
+
+/* переключатель: состояние держит aria-checked, стили идут за ним */
+.switch {
+  display: inline-flex;
+  align-items: center;
+  flex: none;
+  width: 44px;
+  height: 26px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+  background: var(--bg-hover);
+}
+
+.switch span {
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  background: var(--muted);
+  transition: transform 0.18s ease, background-color 0.18s ease;
+}
+
+.switch[aria-checked="true"] {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.switch[aria-checked="true"] span {
+  transform: translateX(18px);
+  background: var(--accent-text);
+}
+
+.segmented {
+  display: inline-flex;
+  flex: none;
+  gap: 2px;
+  padding: 2px;
+  border: 1px solid var(--border);
+  border-radius: 9999px;
+}
+
+.segmented button {
+  padding: 6px 14px;
+  border: 0;
+  border-radius: 9999px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 13px;
+}
+
+.segmented button.on {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+#sheet button:focus-visible,
+#sheet input:focus-visible,
+#account:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: 2px;
+}
+
+@media (max-width: 640px) {
+  #sheet {
+    grid-template-columns: 1fr;
+    grid-template-rows: auto minmax(0, 1fr);
+  }
+
+  #sheet nav {
+    flex-direction: row;
+    overflow-x: auto;
+    border-right: 0;
+    border-bottom: 1px solid var(--border);
+  }
+
+  #sheet-title {
+    display: none;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root,
+  #settings,
+  #sheet,
+  .switch span {
+    transition: none;
+  }
 }

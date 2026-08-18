@@ -61,6 +61,60 @@ def first_run(login: str, password: str, keep: bool) -> str | None:
     return recovery
 
 
+def keeping() -> bool:
+    """хранятся ли доступы к оборудованию между перезапусками"""
+    return store.setting(KEEP) == "yes"
+
+
+def change_password(login: str, current: str, following: str) -> bool:
+    """пароль меняется вместе с обёрткой, оборудование при этом не трогается"""
+    if not check(login, current):
+        return False
+    set_password(login, following, vault.current())
+    return True
+
+
+def start_keeping(login: str, password: str) -> str | None:
+    """включает хранение: новый ключ, обёртка под пароль, ключ восстановления
+
+    Пароль нужен именно здесь: обёртку не сделать, не зная его, а в сессии
+    пароля нет и быть не должно.
+    """
+    if not check(login, password):
+        return None
+
+    key = vault.new_key()
+    vault.unlock(key)
+    # пароль остаётся прежним, меняется только обёртка вокруг ключа
+    set_password(login, password, key)
+    store.save_setting(KEEP, "yes")
+
+    recovery = vault.new_recovery()
+    salt = vault.new_salt()
+    store.save_setting(RECOVERY_SALT, salt)
+    store.save_setting(RECOVERY_WRAP, vault.wrap(key, recovery, salt))
+
+    # доступы, введённые до включения режима, шифруются тем же ключом
+    store.keep_credentials()
+    return recovery
+
+
+def stop_keeping(login: str, password: str) -> bool:
+    """выключает хранение: с диска уходят и доступы, и все обёртки ключа"""
+    if not check(login, password):
+        return False
+
+    store.wipe_secrets()
+    # обёртка одна, потому что учётная запись одна. с несколькими придётся
+    # снимать обёртку у каждой
+    set_password(login, password, None)
+    store.save_setting(KEEP, "no")
+    store.forget_setting(RECOVERY_SALT)
+    store.forget_setting(RECOVERY_WRAP)
+    vault.lock()
+    return True
+
+
 def recovery_offered() -> bool:
     return bool(store.setting(RECOVERY_WRAP))
 

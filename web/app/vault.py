@@ -62,6 +62,13 @@ def unlock(key: bytes) -> None:
         _key = key
 
 
+def lock() -> None:
+    """хранение выключили, ключу в памяти делать нечего"""
+    global _key
+    with _lock:
+        _key = None
+
+
 def unlocked() -> bool:
     with _lock:
         return _key is not None

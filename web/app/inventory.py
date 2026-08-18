@@ -12,6 +12,8 @@ class NotNetworkDevice(Exception):
 # одиночный потерянный пакет не должен красить карту, ждём три обхода подряд
 OFFLINE_AFTER = 3
 
+LLDP_AUTO = "lldp_auto"
+
 
 def decorate(device: dict) -> dict:
     device = dict(device)
@@ -96,7 +98,11 @@ def collect_config(ip: str, source: str) -> dict | None:
 
 
 def lldp_auto() -> bool:
-    return store.setting("lldp_auto") != "no"
+    return store.setting(LLDP_AUTO) != "no"
+
+
+def set_lldp_auto(auto: bool) -> None:
+    store.save_setting(LLDP_AUTO, "yes" if auto else "no")
 
 
 def ensure_lldp(ip: str, driver, username: str, password: str) -> str | None:

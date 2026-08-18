@@ -2,5 +2,6 @@
 export const state = {
   devices: [],
   selected: null,
+  subnet: "",
   rootId: localStorage.getItem("root") || null,
 };

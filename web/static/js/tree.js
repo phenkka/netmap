@@ -45,7 +45,7 @@ export function renderList() {
 
   const title = document.createElement("span");
   title.className = "name";
-  title.textContent = document.getElementById("subnet").value.trim();
+  title.textContent = state.subnet;
 
   const count = document.createElement("span");
   count.className = "count";

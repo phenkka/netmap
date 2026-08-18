@@ -294,6 +294,11 @@ def save_setting(key: str, value: str) -> None:
         )
 
 
+def forget_setting(key: str) -> None:
+    with _pool.connection() as conn:
+        conn.execute("DELETE FROM settings WHERE key = %s", (key,))
+
+
 def user_count() -> int:
     with _pool.connection() as conn:
         return conn.execute("SELECT count(*) AS total FROM users").fetchone()["total"]
@@ -380,6 +385,15 @@ def load_credentials() -> int:
             _credentials[row["ip"]] = found
         restored += 1
     return restored
+
+
+def keep_credentials() -> int:
+    """режим хранения включили на ходу, шифруем то, что уже лежит в памяти"""
+    with _credentials_lock:
+        known = dict(_credentials)
+    for ip, (username, password) in known.items():
+        set_credentials(ip, username, password)
+    return len(known)
 
 
 def wipe_secrets() -> None:

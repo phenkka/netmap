@@ -24,9 +24,13 @@ export const DOUBLE_TAP = 350;
 export const EDGE_FADE = 320;
 export const MOTION = 420;
 export const EASING = "ease-in-out";
-export const THEME_FADE = 200;
+// столько же стоит в style.css, в переменной --fade
+export const THEME_FADE = 260;
 export const REFRESH_EVERY = 3000;
 export const PENDING_EVERY = 4000;
+
+// столько же стоит в style.css, в переменной --sheet-fade
+export const SHEET_FADE = 200;
 
 export const VIEW_KEY = "netmap-view";
 export const PLACES_KEY = "netmap-places";
