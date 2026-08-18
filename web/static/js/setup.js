@@ -11,6 +11,8 @@ const login = document.getElementById("login");
 const password = document.getElementById("password");
 const again = document.getElementById("again");
 const subnet = document.getElementById("subnet");
+const secret = document.getElementById("secret");
+const picks = [...document.querySelectorAll(".pick")];
 
 const READY = "Проверить и продолжить";
 const STEP_MOTION = 300;
@@ -18,6 +20,7 @@ const STEP_MOTION = 300;
 let least = 8;
 let anyway = false;
 let unlock = null;
+let keep = true;
 
 function show(index) {
   problem.textContent = "";
@@ -25,6 +28,8 @@ function show(index) {
   const was = card.offsetHeight;
   steps.forEach((step, i) => step.classList.toggle("on", i === index));
   dots.forEach((dot, i) => dot.classList.toggle("on", i === index));
+  // у последнего экрана точки нет: он не шаг настройки, а то, что после неё
+  document.getElementById("dots").hidden = index >= dots.length;
   const now = card.offsetHeight;
 
   clearTimeout(unlock);
@@ -133,11 +138,19 @@ async function finish() {
     }
 
     busy("Настраиваю");
-    await post("/api/setup", {
+    const body = await post("/api/setup", {
       login: login.value,
       password: password.value,
       subnet: subnet.value,
+      keep,
     });
+
+    // ключ показывается ровно здесь и больше нигде, второй раз его не выдать
+    if (body.recovery) {
+      secret.textContent = body.recovery;
+      show(4);
+      return;
+    }
     location.href = "/";
   } catch (error) {
     calm();
@@ -147,9 +160,17 @@ async function finish() {
   }
 }
 
+picks.forEach((pick) => {
+  pick.addEventListener("click", () => {
+    keep = pick.dataset.keep === "yes";
+    picks.forEach((other) => other.classList.toggle("on", other === pick));
+  });
+});
+
 steps[0].querySelector(".next").addEventListener("click", () => show(1));
 steps[1].querySelector(".back").addEventListener("click", () => show(0));
 steps[2].querySelector(".back").addEventListener("click", () => show(1));
+steps[3].querySelector(".back").addEventListener("click", () => show(2));
 
 steps[1].addEventListener("submit", (event) => {
   event.preventDefault();
@@ -158,7 +179,16 @@ steps[1].addEventListener("submit", (event) => {
 
 steps[2].addEventListener("submit", (event) => {
   event.preventDefault();
+  show(3);
+});
+
+steps[3].addEventListener("submit", (event) => {
+  event.preventDefault();
   finish();
+});
+
+document.getElementById("entered").addEventListener("click", () => {
+  location.href = "/";
 });
 
 subnet.addEventListener("input", reset);

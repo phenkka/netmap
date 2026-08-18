@@ -25,5 +25,52 @@ form.addEventListener("submit", async (event) => {
   }
 });
 
+const forgot = document.getElementById("forgot");
+const cancel = document.getElementById("cancel");
+const enter = document.getElementById("enter");
+const restore = document.getElementById("restore");
+const rGo = document.getElementById("r-go");
+const rProblem = document.getElementById("r-problem");
+
+function swap(recovering) {
+  enter.hidden = recovering;
+  restore.hidden = !recovering;
+  (recovering ? document.getElementById("r-login") : login).focus();
+}
+
+forgot.addEventListener("click", () => swap(true));
+cancel.addEventListener("click", () => swap(false));
+
+restore.addEventListener("submit", async (event) => {
+  event.preventDefault();
+  rProblem.textContent = "";
+  rGo.disabled = true;
+  try {
+    const response = await fetch("/api/recover", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        login: document.getElementById("r-login").value,
+        recovery: document.getElementById("r-key").value,
+        password: document.getElementById("r-password").value,
+      }),
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.detail || "не удалось восстановить доступ");
+    location.href = "/";
+  } catch (error) {
+    rProblem.textContent = error.message;
+    rGo.disabled = false;
+  }
+});
+
+// без выданного ключа восстанавливать нечем, и предлагать это незачем
+fetch("/api/recovery")
+  .then((response) => response.json())
+  .then((body) => {
+    forgot.hidden = !body.offered;
+  })
+  .catch(() => {});
+
 paintMock();
 login.focus();

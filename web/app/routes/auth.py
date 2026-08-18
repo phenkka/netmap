@@ -1,9 +1,9 @@
 import ipaddress
 
-from fastapi import APIRouter, HTTPException, Request, Response
+from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from .. import auth, scanner, watch
+from .. import auth, scanner, store, watch
 
 router = APIRouter(prefix="/api")
 
@@ -15,6 +15,14 @@ class Credentials(BaseModel):
 
 class Setup(Credentials):
     subnet: str
+    # хранить ли доступы к оборудованию между перезапусками
+    keep: bool = False
+
+
+class Recovery(BaseModel):
+    login: str
+    recovery: str
+    password: str
 
 
 class Subnet(BaseModel):
@@ -59,6 +67,12 @@ def offer() -> dict:
     }
 
 
+@router.get("/recovery")
+def recovery_offered() -> dict:
+    """выдавался ли ключ восстановления, от этого зависит форма на входе"""
+    return {"offered": auth.recovery_offered()}
+
+
 @router.post("/setup/check")
 async def check(body: Subnet) -> dict:
     if auth.configured():
@@ -101,17 +115,40 @@ def setup(body: Setup, response: Response) -> dict:
 
     _network(body.subnet)
 
-    auth.create_user(body.login.strip(), body.password)
+    recovery = auth.first_run(body.login.strip(), body.password, body.keep)
     watch.remember(body.subnet.strip())
-    return _enter(auth.check(body.login.strip(), body.password), response)
+    entered = _enter(auth.check(body.login.strip(), body.password), response)
+    return {**entered, "recovery": recovery}
 
 
 @router.post("/login")
-def login(body: Credentials, response: Response) -> dict:
+def login(body: Credentials, response: Response, later: BackgroundTasks) -> dict:
     user = auth.check(body.login.strip(), body.password)
     if not user:
         raise HTTPException(401, "неверный логин или пароль")
+    if auth.open_vault(user, body.password):
+        later.add_task(watch.catch_up)
     return _enter(user, response)
+
+
+@router.post("/recover")
+def recover(body: Recovery, response: Response, later: BackgroundTasks) -> dict:
+    """вход по ключу восстановления, он же задаёт новый пароль"""
+    if not auth.recovery_offered():
+        raise HTTPException(400, "ключ восстановления не выдавался")
+
+    user = store.user(body.login.strip())
+    if not user:
+        raise HTTPException(404, "такой учётной записи нет")
+    if len(body.password) < auth.MIN_PASSWORD:
+        raise HTTPException(400, f"пароль короче {auth.MIN_PASSWORD} знаков")
+
+    if not auth.recover(user["login"], body.recovery.strip(), body.password):
+        raise HTTPException(400, "ключ восстановления не подошёл")
+
+    if auth.restore_credentials():
+        later.add_task(watch.catch_up)
+    return _enter(store.user(user["login"]), response)
 
 
 @router.post("/logout")

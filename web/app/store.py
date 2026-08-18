@@ -7,6 +7,8 @@ from datetime import datetime, timezone
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
 
+from . import vault
+
 DSN = os.environ.get("NETMAP_DB", "postgresql:///netmap?host=/var/run/postgresql&user=netmap")
 
 SCHEMA = """
@@ -63,7 +65,17 @@ CREATE TABLE IF NOT EXISTS users (
     login         TEXT PRIMARY KEY,
     password_hash TEXT NOT NULL,
     role          TEXT NOT NULL DEFAULT 'admin',
+    key_salt      TEXT,
+    wrapped_key   TEXT,
     created_at    TEXT NOT NULL
+);
+
+ALTER TABLE users ADD COLUMN IF NOT EXISTS key_salt TEXT;
+ALTER TABLE users ADD COLUMN IF NOT EXISTS wrapped_key TEXT;
+
+CREATE TABLE IF NOT EXISTS secrets (
+    ip  TEXT PRIMARY KEY,
+    box TEXT NOT NULL
 );
 """
 
@@ -71,7 +83,8 @@ _pool = ConnectionPool(
     DSN, min_size=1, max_size=10, open=False, kwargs={"row_factory": dict_row}
 )
 
-# учётные данные только в памяти, на диск не пишутся
+# в открытом виде учётные данные живут только здесь. на диск они уходят
+# зашифрованными и только в режиме хранения
 _credentials: dict[str, tuple[str, str]] = {}
 _credentials_lock = threading.Lock()
 
@@ -291,20 +304,54 @@ def user(login: str) -> dict | None:
         return conn.execute("SELECT * FROM users WHERE login = %s", (login,)).fetchone()
 
 
-def save_user(login: str, password_hash: str, role: str) -> None:
+def save_user(
+    login: str,
+    password_hash: str,
+    role: str,
+    key_salt: str | None = None,
+    wrapped_key: str | None = None,
+) -> None:
     with _pool.connection() as conn:
         conn.execute(
             """
-            INSERT INTO users (login, password_hash, role, created_at)
-            VALUES (%s, %s, %s, %s)
+            INSERT INTO users (login, password_hash, role, key_salt, wrapped_key, created_at)
+            VALUES (%s, %s, %s, %s, %s, %s)
             """,
-            (login, password_hash, role, _now()),
+            (login, password_hash, role, key_salt, wrapped_key, _now()),
+        )
+
+
+def save_password(
+    login: str, password_hash: str, key_salt: str | None, wrapped_key: str | None
+) -> None:
+    """новый пароль и перезавёрнутая под него копия ключа, одной записью"""
+    with _pool.connection() as conn:
+        conn.execute(
+            """
+            UPDATE users
+               SET password_hash = %s, key_salt = %s, wrapped_key = %s
+             WHERE login = %s
+            """,
+            (password_hash, key_salt, wrapped_key, login),
         )
 
 
 def set_credentials(ip: str, username: str, password: str) -> None:
     with _credentials_lock:
         _credentials[ip] = (username, password)
+
+    # в режиме без хранения ключа нет, и на диск ничего не уходит
+    box = vault.seal(ip, username, password)
+    if box is None:
+        return
+    with _pool.connection() as conn:
+        conn.execute(
+            """
+            INSERT INTO secrets (ip, box) VALUES (%s, %s)
+            ON CONFLICT (ip) DO UPDATE SET box = EXCLUDED.box
+            """,
+            (ip, box),
+        )
 
 
 def credentials(ip: str) -> tuple[str, str] | None:
@@ -315,3 +362,27 @@ def credentials(ip: str) -> tuple[str, str] | None:
 def forget_credentials(ip: str) -> None:
     with _credentials_lock:
         _credentials.pop(ip, None)
+    with _pool.connection() as conn:
+        conn.execute("DELETE FROM secrets WHERE ip = %s", (ip,))
+
+
+def load_credentials() -> int:
+    """вход администратора развернул ключ, раскладываем доступы обратно в память"""
+    with _pool.connection() as conn:
+        rows = conn.execute("SELECT ip, box FROM secrets").fetchall()
+
+    restored = 0
+    for row in rows:
+        found = vault.unseal(row["ip"], row["box"])
+        if not found:
+            continue
+        with _credentials_lock:
+            _credentials[row["ip"]] = found
+        restored += 1
+    return restored
+
+
+def wipe_secrets() -> None:
+    """переход в режим, где доступы на диске не хранятся"""
+    with _pool.connection() as conn:
+        conn.execute("DELETE FROM secrets")

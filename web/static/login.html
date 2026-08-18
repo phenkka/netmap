@@ -38,7 +38,21 @@
   <input id="login" placeholder="Логин" autocomplete="username" spellcheck="false" required>
   <input id="password" type="password" placeholder="Пароль" autocomplete="current-password" required>
   <button type="submit" id="go">Войти</button>
+  <button type="button" id="forgot" class="link" hidden>Забыли пароль?</button>
   <div id="problem"></div>
+</form>
+
+<form id="restore" novalidate hidden>
+  <span class="brand">netmap</span>
+  <p class="lead">Ключ восстановления выдавался при первом запуске. Он откроет
+    доступы к оборудованию и задаст новый пароль администратору.</p>
+  <input id="r-login" placeholder="Логин" autocomplete="username" spellcheck="false">
+  <input id="r-key" placeholder="Ключ восстановления" spellcheck="false">
+  <input id="r-password" type="password" placeholder="Новый пароль"
+         autocomplete="new-password">
+  <button type="submit" id="r-go">Задать пароль и войти</button>
+  <button type="button" id="cancel" class="link">Обычный вход</button>
+  <div id="r-problem"></div>
 </form>
 
 <script type="module" src="/static/js/login.js"></script>

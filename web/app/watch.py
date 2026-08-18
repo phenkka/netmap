@@ -2,6 +2,8 @@ import asyncio
 import ipaddress
 import time
 
+from fastapi import HTTPException
+
 from . import drivers, inventory, scanner, ssh, store
 
 SCAN_EVERY = 60
@@ -64,6 +66,32 @@ async def run() -> None:
         # крупную сеть обход проходит минутами, и без этой паузы машина
         # оказывается занята им почти непрерывно
         pause = max(SCAN_EVERY, time.monotonic() - started)
+
+
+async def catch_up() -> None:
+    """после входа администратора: доступы вернулись в память, проверяем ими сеть
+
+    Продукт мог простоять выключенным, поэтому за один проход подтверждаем
+    доступ, перечитываем соседей и снимаем конфигурации. Расхождения с последним
+    сохранённым состоянием становятся новыми версиями в истории.
+    """
+    for device in store.devices():
+        credentials = store.credentials(device["ip"])
+        if not credentials or not inventory.online(device):
+            continue
+        try:
+            await asyncio.to_thread(_recheck, device["ip"], *credentials)
+        except (ssh.SshError, OSError, HTTPException, inventory.NotNetworkDevice) as exc:
+            store.save_error(device["ip"], str(exc) or "устройство не отвечает")
+
+
+def _recheck(ip: str, username: str, password: str) -> None:
+    driver, identity = inventory.identify(ip, username, password)
+    store.save_identity(
+        ip, identity["hostname"], driver.vendor, identity["model"], identity["version"]
+    )
+    inventory.collect_neighbors(ip, driver)
+    inventory.collect_config(ip, "startup")
 
 
 async def refresh_neighbors() -> None:

@@ -219,7 +219,14 @@ body.entrance {
   opacity: 0.35;
 }
 
+#enter[hidden],
+#restore[hidden],
+#dots[hidden] {
+  display: none;
+}
+
 #enter,
+#restore,
 #wizard {
   position: fixed;
   z-index: 2;
@@ -238,12 +245,14 @@ body.entrance {
 }
 
 #enter .brand,
+#restore .brand,
 #wizard .brand {
   font-size: 28px;
   text-align: center;
 }
 
 #enter #hint,
+#restore .lead,
 #wizard .lead {
   margin: 0 0 4px;
   text-align: center;
@@ -266,7 +275,8 @@ body.entrance {
   transition: height 0.3s ease-in-out;
 }
 
-#enter button,
+#enter button:not(.link),
+#restore button:not(.link),
 #wizard button.go {
   display: inline-flex;
   align-items: center;
@@ -278,7 +288,8 @@ body.entrance {
   font-weight: 700;
 }
 
-#enter button:hover,
+#enter button:not(.link):hover,
+#restore button:not(.link):hover,
 #wizard button.go:hover {
   background: var(--accent-hover);
   border-color: var(--accent-hover);
@@ -321,6 +332,7 @@ body.entrance {
 }
 
 #enter button:disabled,
+#restore button:disabled,
 #wizard button:disabled {
   opacity: 0.6;
   cursor: default;
@@ -992,4 +1004,66 @@ table.neighbors td:last-child {
 
 #term-body .xterm {
   height: 100%;
+}
+
+.link {
+  background: transparent;
+  border: 0;
+  padding: 2px;
+  color: var(--muted);
+  font-size: 12px;
+}
+
+.link:hover {
+  color: var(--text);
+  background: transparent;
+}
+
+/* выбор режима в мастере: карточка целиком кликается, выбранная подсвечена */
+.pick {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  text-align: left;
+  padding: 12px 14px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: transparent;
+}
+
+.pick:hover {
+  background: var(--bg-hover);
+}
+
+.pick.on {
+  border-color: var(--accent);
+  background: var(--bg-elev);
+}
+
+.pick-name {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.pick-note {
+  font-size: 11px;
+  line-height: 1.45;
+  color: var(--muted);
+  white-space: normal;
+}
+
+.secret {
+  margin: 0;
+  padding: 14px 10px;
+  text-align: center;
+  font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+  font-size: 16px;
+  letter-spacing: 0.06em;
+  color: var(--text);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  user-select: all;
+  overflow-wrap: anywhere;
 }

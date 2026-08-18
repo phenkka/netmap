@@ -53,6 +53,30 @@
   </form>
 
   <form class="step" novalidate>
+    <p class="title">Доступы к оборудованию</p>
+    <p class="lead">Логины и пароли, которыми продукт подключается к устройствам</p>
+
+    <button type="button" class="pick on" data-keep="yes">
+      <span class="pick-name">Хранить зашифрованными</span>
+      <span class="pick-note">Лежат в базе под ключом, который выводится из вашего
+        пароля. После перезапуска достаточно одного входа в продукт, и всё
+        оборудование снова доступно.</span>
+    </button>
+
+    <button type="button" class="pick" data-keep="no">
+      <span class="pick-name">Не хранить совсем</span>
+      <span class="pick-note">Живут только в памяти продукта. На диск не попадают
+        ни в каком виде, но после перезапуска войти придётся на каждое устройство
+        заново.</span>
+    </button>
+
+    <div class="pair">
+      <button type="button" class="back">Назад</button>
+      <button type="submit" class="go">Дальше</button>
+    </div>
+  </form>
+
+  <form class="step" novalidate>
     <p class="title">Сеть управления</p>
     <p class="lead">Подсеть, в которой продукт будет искать оборудование</p>
     <input id="subnet" placeholder="10.10.10.0/24" spellcheck="false">
@@ -67,7 +91,18 @@
     </div>
   </form>
 
-  <div id="dots"><i class="on"></i><i></i><i></i></div>
+  <div class="step">
+    <p class="title">Ключ восстановления</p>
+    <p class="lead">Сохраните его сейчас. Он показывается один раз и больше нигде
+      не появится.</p>
+    <p class="secret" id="secret"></p>
+    <p class="hint">Ключ нужен, если единственный администратор забудет пароль.
+      Он открывает доступы к оборудованию так же, как пароль администратора.
+      Храните его там же, где остальные пароли от инфраструктуры.</p>
+    <button type="button" class="go" id="entered">Сохранил, войти в продукт</button>
+  </div>
+
+  <div id="dots"><i class="on"></i><i></i><i></i><i></i></div>
   <div id="problem"></div>
 </section>
 
