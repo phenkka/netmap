@@ -13,6 +13,7 @@ def graph() -> dict:
     by_hostname = {d["hostname"]: d for d in all_devices if d.get("hostname")}
     by_ip = {d["ip"]: d for d in all_devices}
     known = inventory.capabilities()
+    failed = store.failed_checks()
 
     # серверы и рабочие станции на карту не идут, они остаются в списке
     nodes = [
@@ -22,6 +23,8 @@ def graph() -> dict:
             "status": d["state"],
             "vendor": d.get("vendor") or d.get("vendor_guess") or "",
             "type": inventory.node_type(d),
+            "drift": d.get("drift"),
+            "failed_checks": failed.get(d["ip"], 0),
         }
         for d in all_devices
         if d["status"] in ON_MAP
@@ -60,6 +63,8 @@ def graph() -> dict:
                         "type": inventory.device_type(
                             known.get(link["remote_name"], "")
                         ),
+                        "drift": None,
+                        "failed_checks": 0,
                     }
                 )
 
