@@ -7,9 +7,14 @@ class NokiaSrLinux(Driver):
     version_command = "show version"
     neighbors_command = "info from state system lldp interface *"
     config_command = "info from running"
+    config_flat_command = "info flat from running"
 
     # candidate общий для всех сессий, чужую несохранённую правку видно
     pending_diff_commands = ["enter candidate", "diff"]
+
+    enter_config = ["enter candidate"]
+    leave_config = ["commit now", "quit"]
+    discard_commands = ["enter candidate", "discard now", "quit"]
 
     lldp_state_command = "info from running /system lldp"
     lldp_enable_commands = [
@@ -23,6 +28,25 @@ class NokiaSrLinux(Driver):
     # --{ + candidate shared default }-- , настройка идёт только в candidate
     prompt_pattern = r"--\{[^}]*\}"
     config_prompt_marker = r"candidate"
+
+    baseline_ignore = [
+        r"^\s*name\s+\S+\s*$",
+        r"hostname",
+        r"\$aes1\$",
+        r"\$y\$",
+        r"ssh-ed25519|ssh-rsa",
+        r"address\s+\d+\.\d+\.\d+\.\d+",
+        r"mac-address",
+        r"system-mac",
+    ]
+
+    check_rules = {
+        "telnet_off": {"forbid": [r"telnet-server admin-state enable"]},
+        "snmp_closed": {"forbid": [r"snmp .*community public", r"community public"]},
+        "mgmt_acl": {"require": [r"system control-plane-traffic input acl"]},
+        "logging_on": {"require": [r"system logging"]},
+        "dot1x": {"require": [r"interface \S+ dot1x", r"dot1x admin-state enable"]},
+    }
 
     @classmethod
     def matches(cls, output: str) -> bool:
@@ -41,6 +65,53 @@ class NokiaSrLinux(Driver):
             "model": fields.get("Chassis Type", ""),
             "version": fields.get("Software Version", ""),
         }
+
+    @classmethod
+    def restore_commands(cls, flat: str, current: str = "") -> list[str]:
+        """к возврату прежних значений добавляет удаление того, чего в снимке нет"""
+        target = [line for line in flat.splitlines() if line.strip()]
+        commands: list[str] = []
+
+        if current:
+            wanted = set(target)
+            paths = {cls._path(line) for line in target}
+            gone = {
+                cls._path(line)
+                for line in current.splitlines()
+                if line.strip() and line not in wanted and cls._path(line) not in paths
+            }
+            # длинный путь удаляем первым: родитель уносит потомка, и delete
+            # потомка после этого падает, а commit на SR Linux атомарный
+            commands += [f"delete {path}" for path in sorted(gone, key=len, reverse=True) if path]
+
+        return cls.session(commands + target)
+
+    @staticmethod
+    def _path(line: str) -> str:
+        """путь настройки без значения: set / system information location "..." """
+        body = line.strip()
+        if not body.startswith("set "):
+            return ""
+        body = body[4:].strip()
+
+        if body.endswith("]"):
+            cut = body.rfind("[")
+            return body[:cut].strip() if cut > 0 else ""
+        if body.endswith('"'):
+            cut = body.rfind('"', 0, len(body) - 1)
+            return body[:cut].strip() if cut > 0 else ""
+
+        parts = body.rsplit(None, 1)
+        return parts[0].strip() if len(parts) == 2 else ""
+
+    @classmethod
+    def normalize_flat(cls, output: str) -> str:
+        # строки вида "set /  !!! комментарий" обратно на устройство не заходят
+        return "\n".join(
+            line
+            for line in output.splitlines()
+            if line.strip() and "!!!" not in line
+        )
 
     @classmethod
     def lldp_ready(cls, output: str) -> bool:
