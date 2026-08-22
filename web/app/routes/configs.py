@@ -1,8 +1,9 @@
+import asyncio
 import difflib
 
-from fastapi import APIRouter, HTTPException
+from fastapi import APIRouter, HTTPException, Request
 
-from .. import inventory, ssh, store
+from .. import apply, inventory, journal, ssh, store
 
 router = APIRouter(prefix="/api/devices")
 
@@ -13,7 +14,18 @@ def take_config(ip: str) -> dict:
     last = store.last_config(ip)
     if last:
         last.pop("text")
+        last.pop("flat", None)
     return {"changed": bool(version), "version": last}
+
+
+@router.post("/{ip}/versions/{version_id}/rollback")
+async def rollback(ip: str, version_id: int, request: Request) -> dict:
+    who = journal.who(request)
+    try:
+        return await asyncio.to_thread(apply.rollback, ip, version_id, who)
+    except ssh.SshError as exc:
+        journal.record(journal.ROLLBACK, who, ip, str(exc), False)
+        raise HTTPException(400, str(exc))
 
 
 @router.get("/{ip}/versions")
@@ -26,6 +38,8 @@ def version(ip: str, version_id: int) -> dict:
     found = store.config(version_id)
     if not found or found["ip"] != ip:
         raise HTTPException(404, "версия не найдена")
+    # командный вид нужен откату, а не читателю, и весит столько же
+    found["restorable"] = bool(found.pop("flat", None))
     return found
 
 
