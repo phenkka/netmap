@@ -3,7 +3,7 @@ import ipaddress
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request, Response
 from pydantic import BaseModel
 
-from .. import auth, scanner, store, watch
+from .. import auth, journal, scanner, store, watch
 
 router = APIRouter(prefix="/api")
 
@@ -115,9 +115,17 @@ def setup(body: Setup, response: Response) -> dict:
 
     _network(body.subnet)
 
-    recovery = auth.first_run(body.login.strip(), body.password, body.keep)
+    login_name = body.login.strip()
+    recovery = auth.first_run(login_name, body.password, body.keep)
     watch.remember(body.subnet.strip())
-    entered = _enter(auth.check(body.login.strip(), body.password), response)
+    journal.record(
+        journal.SETUP,
+        login_name,
+        None,
+        f"сеть {body.subnet.strip()}, хранение доступов "
+        + ("включено" if body.keep else "выключено"),
+    )
+    entered = _enter(auth.check(login_name, body.password), response)
     return {**entered, "recovery": recovery}
 
 
@@ -125,9 +133,15 @@ def setup(body: Setup, response: Response) -> dict:
 def login(body: Credentials, response: Response, later: BackgroundTasks) -> dict:
     user = auth.check(body.login.strip(), body.password)
     if not user:
+        journal.record(journal.LOGIN, body.login.strip(), None, "неверный пароль", False)
         raise HTTPException(401, "неверный логин или пароль")
-    if auth.open_vault(user, body.password):
+
+    restored = auth.open_vault(user, body.password)
+    if restored:
         later.add_task(watch.catch_up)
+    journal.record(
+        journal.LOGIN, user["login"], None, f"доступов возвращено в память: {restored}"
+    )
     return _enter(user, response)
 
 
@@ -144,15 +158,18 @@ def recover(body: Recovery, response: Response, later: BackgroundTasks) -> dict:
         raise HTTPException(400, f"пароль короче {auth.MIN_PASSWORD} знаков")
 
     if not auth.recover(user["login"], body.recovery.strip(), body.password):
+        journal.record(journal.RECOVER, user["login"], None, "ключ не подошёл", False)
         raise HTTPException(400, "ключ восстановления не подошёл")
 
     if auth.restore_credentials():
         later.add_task(watch.catch_up)
+    journal.record(journal.RECOVER, user["login"], None, "пароль задан заново")
     return _enter(store.user(user["login"]), response)
 
 
 @router.post("/logout")
 def logout(request: Request, response: Response) -> dict:
+    journal.note(request, journal.LOGOUT)
     auth.close_session(request.cookies.get(auth.COOKIE))
     response.delete_cookie(auth.COOKIE)
     return {"ok": True}

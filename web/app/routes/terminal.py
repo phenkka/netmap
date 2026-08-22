@@ -6,7 +6,7 @@ import time
 
 from fastapi import APIRouter, HTTPException, WebSocket, WebSocketDisconnect
 
-from .. import auth, drivers, inventory, ssh, store
+from .. import auth, drivers, inventory, journal, ssh, store
 
 router = APIRouter(prefix="/api/devices")
 
@@ -20,10 +20,12 @@ TAIL = 400
 async def terminal(socket: WebSocket, ip: str) -> None:
     await socket.accept()
 
-    if not auth.by_token(socket.cookies.get(auth.COOKIE)):
+    session = auth.by_token(socket.cookies.get(auth.COOKIE))
+    if not session:
         await _notify(socket, "error", text="требуется вход")
         await socket.close()
         return
+    who = session["login"]
 
     credentials = store.credentials(ip)
     if not credentials:
@@ -36,9 +38,12 @@ async def terminal(socket: WebSocket, ip: str) -> None:
         # paramiko блокирующий, в общем цикле он остановит весь сервер
         client, channel = await asyncio.to_thread(ssh.shell, ip, username, password)
     except ssh.SshError as exc:
+        journal.record(journal.TERMINAL, who, ip, str(exc), False)
         await _notify(socket, "error", text=f"не удалось открыть сессию: {exc}")
         await socket.close()
         return
+
+    journal.record(journal.TERMINAL, who, ip, "сессия открыта")
 
     loop = asyncio.get_running_loop()
     outgoing: asyncio.Queue = asyncio.Queue()
@@ -113,9 +118,17 @@ async def terminal(socket: WebSocket, ip: str) -> None:
         client.close()
         # правка через терминал идёт мимо API, иначе она осталась бы незамеченной
         try:
-            await asyncio.to_thread(inventory.collect_config, ip, "terminal")
-        except (HTTPException, ssh.SshError):
-            pass
+            version = await asyncio.to_thread(inventory.collect_config, ip, "terminal")
+            journal.record(
+                journal.TERMINAL,
+                who,
+                ip,
+                "сессия закрыта, конфигурация изменилась"
+                if version
+                else "сессия закрыта",
+            )
+        except (HTTPException, ssh.SshError) as exc:
+            journal.record(journal.TERMINAL, who, ip, f"сессия закрыта, {exc}", False)
 
 
 async def _notify(socket: WebSocket, kind: str, **fields) -> None:

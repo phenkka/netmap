@@ -31,6 +31,7 @@ CREATE TABLE IF NOT EXISTS devices (
 
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS lldp TEXT;
 ALTER TABLE devices ADD COLUMN IF NOT EXISTS misses INTEGER NOT NULL DEFAULT 0;
+ALTER TABLE devices ADD COLUMN IF NOT EXISTS drift TEXT;
 
 CREATE TABLE IF NOT EXISTS neighbors (
     ip           TEXT NOT NULL,
@@ -76,6 +77,44 @@ ALTER TABLE users ADD COLUMN IF NOT EXISTS wrapped_key TEXT;
 CREATE TABLE IF NOT EXISTS secrets (
     ip  TEXT PRIMARY KEY,
     box TEXT NOT NULL
+);
+
+-- в flat лежит та же конфигурация в виде команд. откат отправляет на
+-- устройство именно её, разобранный вывод обратно не применяется
+ALTER TABLE configs ADD COLUMN IF NOT EXISTS flat BYTEA;
+
+CREATE TABLE IF NOT EXISTS journal (
+    id     BIGSERIAL PRIMARY KEY,
+    at     TEXT NOT NULL,
+    login  TEXT,
+    action TEXT NOT NULL,
+    ip     TEXT,
+    detail TEXT,
+    ok     BOOLEAN NOT NULL DEFAULT TRUE
+);
+
+CREATE INDEX IF NOT EXISTS journal_recent ON journal (id DESC);
+
+CREATE TABLE IF NOT EXISTS baselines (
+    id     BIGSERIAL PRIMARY KEY,
+    name   TEXT NOT NULL,
+    vendor TEXT NOT NULL,
+    at     TEXT NOT NULL,
+    text   BYTEA NOT NULL
+);
+
+CREATE TABLE IF NOT EXISTS device_baseline (
+    ip          TEXT PRIMARY KEY,
+    baseline_id BIGINT NOT NULL REFERENCES baselines (id) ON DELETE CASCADE
+);
+
+CREATE TABLE IF NOT EXISTS checks (
+    ip     TEXT NOT NULL,
+    code   TEXT NOT NULL,
+    state  TEXT NOT NULL,
+    detail TEXT,
+    at     TEXT NOT NULL,
+    PRIMARY KEY (ip, code)
 );
 """
 
@@ -153,6 +192,11 @@ def save_lldp(ip: str, state: str | None) -> None:
         conn.execute("UPDATE devices SET lldp = %s WHERE ip = %s", (state, ip))
 
 
+def save_drift(ip: str, state: str | None) -> None:
+    with _pool.connection() as conn:
+        conn.execute("UPDATE devices SET drift = %s WHERE ip = %s", (state, ip))
+
+
 def save_error(ip: str, message: str) -> None:
     save_status(ip, "failed", message)
 
@@ -210,7 +254,7 @@ def neighbors_of(ip: str) -> list[dict]:
         ).fetchall()
 
 
-def save_config(ip: str, text: str, source: str) -> dict | None:
+def save_config(ip: str, text: str, source: str, flat: str | None = None) -> dict | None:
     """пишет новую версию, если конфигурация изменилась, иначе отдаёт None"""
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     lines = text.count("\n") + 1
@@ -226,11 +270,19 @@ def save_config(ip: str, text: str, source: str) -> dict | None:
         at = _now()
         row = conn.execute(
             """
-            INSERT INTO configs (ip, at, sha256, lines, source, text)
-            VALUES (%s, %s, %s, %s, %s, %s)
+            INSERT INTO configs (ip, at, sha256, lines, source, text, flat)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
             RETURNING id
             """,
-            (ip, at, digest, lines, source, zlib.compress(text.encode("utf-8"), 6)),
+            (
+                ip,
+                at,
+                digest,
+                lines,
+                source,
+                zlib.compress(text.encode("utf-8"), 6),
+                zlib.compress(flat.encode("utf-8"), 6) if flat is not None else None,
+            ),
         ).fetchone()
 
     return {
@@ -247,13 +299,49 @@ def configs(ip: str) -> list[dict]:
     with _pool.connection() as conn:
         return conn.execute(
             """
-            SELECT id, ip, at, sha256, lines, source
+            SELECT id, ip, at, sha256, lines, source, flat IS NOT NULL AS restorable
               FROM configs
              WHERE ip = %s
              ORDER BY id DESC
             """,
             (ip,),
         ).fetchall()
+
+
+def restore_all_configs() -> list[dict]:
+    """выгрузка копий: все версии всех устройств, вместе с текстом"""
+    with _pool.connection() as conn:
+        rows = conn.execute("SELECT * FROM configs ORDER BY id").fetchall()
+    return [_unpack(row) for row in rows]
+
+
+def insert_config(
+    ip: str, at: str, sha256: str, lines: int, source: str, text: str, flat: str | None
+) -> bool:
+    """восстановление из копии. одинаковый снимок второй раз не заводим"""
+    with _pool.connection() as conn:
+        exists = conn.execute(
+            "SELECT 1 FROM configs WHERE ip = %s AND at = %s AND sha256 = %s",
+            (ip, at, sha256),
+        ).fetchone()
+        if exists:
+            return False
+        conn.execute(
+            """
+            INSERT INTO configs (ip, at, sha256, lines, source, text, flat)
+            VALUES (%s, %s, %s, %s, %s, %s, %s)
+            """,
+            (
+                ip,
+                at,
+                sha256,
+                lines,
+                source,
+                zlib.compress(text.encode("utf-8"), 6),
+                zlib.compress(flat.encode("utf-8"), 6) if flat is not None else None,
+            ),
+        )
+    return True
 
 
 def config(version_id: int) -> dict | None:
@@ -274,6 +362,8 @@ def _unpack(row: dict | None) -> dict | None:
     if not row:
         return None
     row["text"] = zlib.decompress(row["text"]).decode("utf-8")
+    packed = row.get("flat")
+    row["flat"] = zlib.decompress(packed).decode("utf-8") if packed else None
     return row
 
 
@@ -400,3 +490,143 @@ def wipe_secrets() -> None:
     """переход в режим, где доступы на диске не хранятся"""
     with _pool.connection() as conn:
         conn.execute("DELETE FROM secrets")
+
+
+def add_entry(
+    login: str | None, action: str, ip: str | None, detail: str | None, ok: bool
+) -> dict:
+    with _pool.connection() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO journal (at, login, action, ip, detail, ok)
+            VALUES (%s, %s, %s, %s, %s, %s)
+            RETURNING id, at
+            """,
+            (_now(), login, action, ip, detail, ok),
+        ).fetchone()
+    return {
+        "id": row["id"],
+        "at": row["at"],
+        "login": login,
+        "action": action,
+        "ip": ip,
+        "detail": detail,
+        "ok": ok,
+    }
+
+
+def entries(after: int | None = None, limit: int = 300) -> list[dict]:
+    """после id отдаёт только новое, иначе последнюю страницу в прямом порядке"""
+    with _pool.connection() as conn:
+        if after is not None:
+            return conn.execute(
+                "SELECT * FROM journal WHERE id > %s ORDER BY id LIMIT %s",
+                (after, limit),
+            ).fetchall()
+        rows = conn.execute(
+            "SELECT * FROM journal ORDER BY id DESC LIMIT %s", (limit,)
+        ).fetchall()
+    return list(reversed(rows))
+
+
+def save_baseline(name: str, vendor: str, text: str) -> dict:
+    with _pool.connection() as conn:
+        row = conn.execute(
+            """
+            INSERT INTO baselines (name, vendor, at, text)
+            VALUES (%s, %s, %s, %s)
+            RETURNING id, name, vendor, at
+            """,
+            (name, vendor, _now(), zlib.compress(text.encode("utf-8"), 6)),
+        ).fetchone()
+    return row
+
+
+def baselines() -> list[dict]:
+    with _pool.connection() as conn:
+        return conn.execute(
+            """
+            SELECT b.id, b.name, b.vendor, b.at, count(d.ip) AS devices
+              FROM baselines b
+              LEFT JOIN device_baseline d ON d.baseline_id = b.id
+             GROUP BY b.id
+             ORDER BY b.name
+            """
+        ).fetchall()
+
+
+def baseline(baseline_id: int) -> dict | None:
+    with _pool.connection() as conn:
+        row = conn.execute(
+            "SELECT * FROM baselines WHERE id = %s", (baseline_id,)
+        ).fetchone()
+    if not row:
+        return None
+    row["text"] = zlib.decompress(row["text"]).decode("utf-8")
+    return row
+
+
+def forget_baseline(baseline_id: int) -> None:
+    with _pool.connection() as conn:
+        conn.execute("DELETE FROM baselines WHERE id = %s", (baseline_id,))
+
+
+def attach_baseline(ip: str, baseline_id: int | None) -> None:
+    with _pool.connection() as conn:
+        if baseline_id is None:
+            conn.execute("DELETE FROM device_baseline WHERE ip = %s", (ip,))
+            return
+        conn.execute(
+            """
+            INSERT INTO device_baseline (ip, baseline_id) VALUES (%s, %s)
+            ON CONFLICT (ip) DO UPDATE SET baseline_id = EXCLUDED.baseline_id
+            """,
+            (ip, baseline_id),
+        )
+
+
+def baseline_of(ip: str) -> dict | None:
+    with _pool.connection() as conn:
+        row = conn.execute(
+            """
+            SELECT b.*
+              FROM device_baseline d
+              JOIN baselines b ON b.id = d.baseline_id
+             WHERE d.ip = %s
+            """,
+            (ip,),
+        ).fetchone()
+    if not row:
+        return None
+    row["text"] = zlib.decompress(row["text"]).decode("utf-8")
+    return row
+
+
+def attached() -> dict[str, int]:
+    with _pool.connection() as conn:
+        rows = conn.execute("SELECT ip, baseline_id FROM device_baseline").fetchall()
+    return {row["ip"]: row["baseline_id"] for row in rows}
+
+
+def save_checks(ip: str, results: list[dict]) -> None:
+    with _pool.connection() as conn, conn.cursor() as cursor:
+        cursor.execute("DELETE FROM checks WHERE ip = %s", (ip,))
+        cursor.executemany(
+            "INSERT INTO checks (ip, code, state, detail, at) VALUES (%s, %s, %s, %s, %s)",
+            [(ip, r["code"], r["state"], r.get("detail"), _now()) for r in results],
+        )
+
+
+def checks_of(ip: str) -> list[dict]:
+    with _pool.connection() as conn:
+        return conn.execute(
+            "SELECT * FROM checks WHERE ip = %s ORDER BY code", (ip,)
+        ).fetchall()
+
+
+def failed_checks() -> dict[str, int]:
+    with _pool.connection() as conn:
+        rows = conn.execute(
+            "SELECT ip, count(*) AS failed FROM checks WHERE state = 'fail' GROUP BY ip"
+        ).fetchall()
+    return {row["ip"]: row["failed"] for row in rows}
