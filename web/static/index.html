@@ -21,6 +21,18 @@
 <header>
   <span class="brand">netmap</span>
   <span id="status"></span>
+  <button id="bulk-open" class="head-icon" title="Групповое применение настроек">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4"
+         stroke-linecap="round" stroke-linejoin="round">
+      <path d="M2 4h9M2 8h9M2 12h5"/><path d="M11.5 11.5 13 13l2.5-3"/>
+    </svg>
+  </button>
+  <button id="dock-toggle" class="head-icon" title="Нижняя панель: журнал и терминалы">
+    <svg viewBox="0 0 16 16" fill="none" stroke="currentColor" stroke-width="1.4">
+      <rect x="1.5" y="2.5" width="13" height="11" rx="1.5"/>
+      <path d="M1.5 10h13" stroke-width="1.4"/>
+    </svg>
+  </button>
   <button id="account" title="Настройки">
     <span class="avatar" id="account-letter"></span>
     <span id="account-login"></span>
@@ -44,6 +56,30 @@
         <ul id="version-list"></ul>
       </div>
 
+      <div id="standard">
+        <div class="cfg-title">
+          <span>Эталон</span>
+          <button id="standard-check" class="link" hidden>сверить</button>
+        </div>
+        <p id="standard-what" class="note"></p>
+        <div id="standard-tools">
+          <select id="standard-pick"></select>
+          <button id="standard-attach" class="secondary">Назначить</button>
+        </div>
+        <form id="standard-make">
+          <input id="standard-name" placeholder="Имя эталона" spellcheck="false">
+          <button type="submit" class="secondary">Сделать эталоном из этой версии</button>
+        </form>
+      </div>
+
+      <div id="audit">
+        <div class="cfg-title">
+          <span>Проверки конфигурации</span>
+          <button id="audit-again" class="link">проверить заново</button>
+        </div>
+        <ul id="audit-list"></ul>
+      </div>
+
       <div id="current">
         <div class="cfg-title">
           <span id="config-what">Текущая конфигурация</span>
@@ -58,13 +94,25 @@
   <section id="workspace">
     <div id="map"></div>
 
-    <section id="terminal" hidden>
-      <div id="term-grip"></div>
-      <div id="term-tabs">
-        <div id="term-list"></div>
-        <button id="term-hide" class="term-icon" title="Скрыть терминал">&#10005;</button>
+    <section id="dock" hidden>
+      <div id="dock-grip"></div>
+      <div id="dock-tabs">
+        <div id="dock-list"></div>
+        <button id="dock-hide" class="dock-icon" title="Скрыть панель">&#10005;</button>
       </div>
-      <div id="term-body"></div>
+      <div id="dock-body">
+        <div class="dock-pane" id="journal-pane">
+          <div id="journal-tools">
+            <input id="journal-find" placeholder="Отбор по устройству, действию или тексту"
+                   spellcheck="false">
+            <label class="only-bad">
+              <input type="checkbox" id="journal-bad"> только неудачные
+            </label>
+            <span id="journal-count"></span>
+          </div>
+          <div id="journal-list"></div>
+        </div>
+      </div>
     </section>
   </section>
 </main>
@@ -77,6 +125,7 @@
       <p id="sheet-title">Настройки</p>
       <button class="tab on" data-pane="general">Общие</button>
       <button class="tab" data-pane="security">Безопасность</button>
+      <button class="tab" data-pane="copies">Копии</button>
       <button class="tab" data-pane="account">Аккаунт</button>
     </nav>
 
@@ -141,6 +190,30 @@
         </div>
       </section>
 
+      <section class="pane" data-pane="copies">
+        <h2>Копии</h2>
+        <div class="line wide">
+          <div class="what">
+            <span class="name">Выгрузить копию</span>
+            <span class="note">Вся история конфигураций и эталоны одним файлом.
+              Учётные данные к оборудованию в копию не попадают.</span>
+          </div>
+          <button id="backup-save">Выгрузить</button>
+        </div>
+        <div class="line wide">
+          <div class="what">
+            <span class="name">Восстановить из копии</span>
+            <span class="note">Версии из файла добавляются к тем, что уже есть.
+              Совпадающие снимки пропускаются, ничего не затирается.</span>
+          </div>
+          <form id="backup-form">
+            <input id="backup-file" type="file" accept=".gz,application/gzip">
+            <button type="submit">Восстановить</button>
+          </form>
+        </div>
+        <p class="note" id="backup-said"></p>
+      </section>
+
       <section class="pane" data-pane="account">
         <h2>Аккаунт</h2>
         <div class="line">
@@ -176,6 +249,45 @@
       </section>
 
       <p id="sheet-problem"></p>
+    </div>
+  </section>
+</div>
+
+<div id="bulk" hidden>
+  <div id="bulk-veil"></div>
+
+  <section id="bulk-sheet" role="dialog" aria-modal="true" aria-labelledby="bulk-title">
+    <div id="bulk-head">
+      <p id="bulk-title">Групповое применение настроек</p>
+      <button id="bulk-close" title="Закрыть">&#10005;</button>
+    </div>
+
+    <div id="bulk-body">
+      <p class="note">Команды вводятся в синтаксисе производителя и уходят на каждое
+        выбранное устройство. Продукт сам входит в режим настройки и сохраняет
+        изменения. Устройство с чужой несохранённой правкой пропускается, перед
+        применением снимается версия конфигурации.</p>
+
+      <div class="bulk-cols">
+        <div class="bulk-side">
+          <div class="cfg-title">
+            <span>Устройства</span>
+            <button id="bulk-all" class="link">выбрать все</button>
+          </div>
+          <ul id="bulk-targets"></ul>
+        </div>
+
+        <div class="bulk-main">
+          <div class="cfg-title">Команды</div>
+          <textarea id="bulk-commands" spellcheck="false"
+                    placeholder="set / system information location &quot;стойка 1&quot;"></textarea>
+          <div id="bulk-actions">
+            <span id="bulk-picked"></span>
+            <button id="bulk-send">Применить</button>
+          </div>
+          <div id="bulk-results"></div>
+        </div>
+      </div>
     </div>
   </section>
 </div>

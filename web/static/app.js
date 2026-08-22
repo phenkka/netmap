@@ -17,6 +17,9 @@ import { DOUBLE_TAP, FOCUS_WAIT, HOVER_SCALE, REFRESH_EVERY } from "./js/const.j
 import { showAccount } from "./js/settings.js";
 import "./js/theme.js";
 import "./js/view.js";
+// журнал заводит свою вкладку первым, поэтому и импортируется раньше терминала
+import "./js/journal.js";
+import "./js/bulk.js";
 
 let lastTap = { id: null, at: 0 };
 let focusTimer = null;
@@ -92,6 +95,10 @@ async function firstScan() {
   }
   await refreshAll();
 }
+
+document.addEventListener("netmap:refresh", () => {
+  refreshAll().catch(() => {});
+});
 
 syncGrid();
 setInterval(refreshAll, REFRESH_EVERY);

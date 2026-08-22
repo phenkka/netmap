@@ -28,6 +28,7 @@ export const EASING = "ease-in-out";
 export const THEME_FADE = 260;
 export const REFRESH_EVERY = 3000;
 export const PENDING_EVERY = 4000;
+export const JOURNAL_EVERY = 3000;
 
 // столько же стоит в style.css, в переменной --sheet-fade
 export const SHEET_FADE = 200;

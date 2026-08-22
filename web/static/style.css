@@ -932,7 +932,7 @@ table.neighbors td:last-child {
   color: var(--muted);
 }
 
-/* ---------- рабочая область и терминал ---------- */
+/* ---------- рабочая область и нижняя панель ---------- */
 
 #workspace {
   flex: 1;
@@ -942,8 +942,8 @@ table.neighbors td:last-child {
   min-height: 0;
 }
 
-/* терминал занимает низ рабочей области и не залезает на меню */
-#terminal {
+/* панель занимает низ рабочей области и не залезает на меню */
+#dock {
   display: flex;
   flex-direction: column;
   flex: none;
@@ -954,36 +954,36 @@ table.neighbors td:last-child {
   transition: background-color 0.2s ease, border-color 0.2s ease;
 }
 
-#terminal[hidden] {
+#dock[hidden] {
   display: none;
 }
 
-#term-grip {
+#dock-grip {
   height: 5px;
   margin-top: -3px;
   cursor: row-resize;
 }
 
-#term-grip:hover {
+#dock-grip:hover {
   background: var(--accent);
 }
 
-#term-tabs {
+#dock-tabs {
   display: flex;
   align-items: stretch;
   border-bottom: 1px solid var(--border);
   transition: border-color 0.2s ease;
 }
 
-#term-list {
+#dock-list {
   display: flex;
   align-items: stretch;
   overflow-x: auto;
   flex: 1;
 }
 
-/* вкладка устройства, активная подчёркивается акцентом */
-.term-tab {
+/* вкладка панели, активная подчёркивается акцентом */
+.dock-tab {
   display: flex;
   align-items: center;
   gap: 8px;
@@ -999,17 +999,17 @@ table.neighbors td:last-child {
   white-space: nowrap;
 }
 
-.term-tab:hover {
+.dock-tab:hover {
   background: var(--bg-hover);
 }
 
-.term-tab.active {
+.dock-tab.active {
   color: var(--text);
   border-bottom-color: var(--accent);
   background: var(--bg-hover);
 }
 
-.term-tab .live {
+.dock-tab .live {
   width: 7px;
   height: 7px;
   border-radius: 50%;
@@ -1017,25 +1017,25 @@ table.neighbors td:last-child {
   flex: none;
 }
 
-.term-tab.online .live {
+.dock-tab.online .live {
   background: var(--pos);
 }
 
-.term-tab.offline .live {
+.dock-tab.offline .live {
   background: var(--neg);
 }
 
-.term-tab .shut {
+.dock-tab .shut {
   color: var(--muted);
   font-size: 12px;
   line-height: 1;
 }
 
-.term-tab .shut:hover {
+.dock-tab .shut:hover {
   color: var(--text);
 }
 
-.term-icon {
+.dock-icon {
   border: 0;
   border-radius: 0;
   background: transparent;
@@ -1044,35 +1044,35 @@ table.neighbors td:last-child {
   font-size: 13px;
 }
 
-.term-icon:hover {
+.dock-icon:hover {
   background: var(--bg-hover);
   color: var(--text);
 }
 
-.term-pane {
+.dock-pane {
   height: 100%;
   background: var(--bg);
   transition: background-color 0.2s ease;
 }
 
 /* полоса прокрутки под цвет темы, иначе остаётся светлой */
-.term-pane .xterm-viewport {
+.dock-pane .xterm-viewport {
   background: transparent !important;
   scrollbar-width: thin;
   scrollbar-color: var(--border) transparent;
 }
 
-.term-pane[hidden] {
+.dock-pane[hidden] {
   display: none;
 }
 
-#term-body {
+#dock-body {
   flex: 1;
   min-height: 0;
   padding: 6px 10px;
 }
 
-#term-body .xterm {
+#dock-body .xterm {
   height: 100%;
 }
 
@@ -1471,4 +1471,434 @@ button.danger:hover {
   .switch span {
     transition: none;
   }
+}
+
+/* ---------- кнопки в шапке ---------- */
+
+.head-icon {
+  margin-left: auto;
+  width: 32px;
+  height: 32px;
+  padding: 0;
+  border: 0;
+  border-radius: 8px;
+  background: transparent;
+  color: var(--muted);
+  display: grid;
+  place-items: center;
+}
+
+/* друг за другом идут без отступа, влево их толкает только первая */
+.head-icon + .head-icon {
+  margin-left: 0;
+}
+
+.head-icon svg {
+  width: 17px;
+  height: 17px;
+}
+
+.head-icon:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+/* ---------- журнал ---------- */
+
+#journal-pane {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  min-height: 0;
+}
+
+#journal-pane[hidden] {
+  display: none;
+}
+
+#journal-tools {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 6px 4px 8px;
+  flex: none;
+}
+
+#journal-find {
+  flex: 1;
+  max-width: 420px;
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 12px;
+}
+
+.only-bad {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  color: var(--muted);
+  font-size: 12px;
+  white-space: nowrap;
+}
+
+#journal-count {
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 12px;
+  font-variant-numeric: tabular-nums;
+}
+
+#journal-list {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  font-size: 12px;
+}
+
+.entry {
+  display: grid;
+  grid-template-columns: 132px 92px 210px 116px minmax(0, 1fr);
+  gap: 10px;
+  padding: 3px 4px;
+  border-bottom: 1px solid transparent;
+}
+
+.entry:hover {
+  background: var(--bg-hover);
+}
+
+.entry .at {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry .who {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.entry .what {
+  color: var(--text);
+}
+
+.entry .where {
+  color: var(--muted);
+  font-variant-numeric: tabular-nums;
+}
+
+.entry .detail {
+  color: var(--muted);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* неудача видна цветом действия, а не всей строкой: строка остаётся читаемой */
+.entry.bad .what {
+  color: var(--neg);
+}
+
+/* ---------- эталон и проверки в панели конфигурации ---------- */
+
+#history {
+  flex: 0 0 26%;
+}
+
+#standard,
+#audit {
+  flex: none;
+  border-bottom: 1px solid var(--border);
+  padding-bottom: 8px;
+}
+
+#standard-what {
+  margin: 0 12px 8px;
+  font-size: 12px;
+}
+
+.note.good {
+  color: var(--pos);
+}
+
+.note.bad {
+  color: var(--neg);
+}
+
+#standard-tools {
+  display: flex;
+  gap: 8px;
+  padding: 0 12px 8px;
+}
+
+#standard-pick {
+  flex: 1;
+  min-width: 0;
+  padding: 5px 8px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 12px;
+}
+
+#standard-make {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 12px;
+}
+
+#standard-make input {
+  padding: 5px 10px;
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-size: 12px;
+}
+
+#audit-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  max-height: 190px;
+  overflow-y: auto;
+}
+
+.audit {
+  display: grid;
+  grid-template-columns: 18px minmax(0, 1fr);
+  gap: 2px 6px;
+  padding: 4px 12px;
+  font-size: 12px;
+}
+
+.audit .mark {
+  grid-row: span 2;
+  text-align: center;
+}
+
+.audit.pass .mark {
+  color: var(--pos);
+}
+
+.audit.fail .mark {
+  color: var(--neg);
+}
+
+.audit.skip .mark {
+  color: var(--muted);
+}
+
+.audit .note {
+  font-size: 11px;
+  color: var(--muted);
+}
+
+/* откат стоит рядом со своей версией и появляется при наведении на неё */
+#version-list li {
+  position: relative;
+}
+
+.revert {
+  position: absolute;
+  top: 4px;
+  right: 10px;
+  opacity: 0;
+  font-size: 11px;
+}
+
+#version-list li:hover .revert,
+.revert:focus {
+  opacity: 1;
+}
+
+/* ---------- окно группового применения ---------- */
+
+#bulk[hidden] {
+  display: none;
+}
+
+#bulk {
+  position: fixed;
+  inset: 0;
+  z-index: 30;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  opacity: 0;
+  transition: opacity var(--sheet-fade) ease;
+}
+
+#bulk.on {
+  opacity: 1;
+}
+
+#bulk-veil {
+  position: absolute;
+  inset: 0;
+  background: var(--veil);
+  backdrop-filter: blur(7px);
+}
+
+#bulk-sheet {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  width: min(940px, 94vw);
+  height: min(620px, 88vh);
+  border: 1px solid var(--border);
+  border-radius: 20px;
+  background: var(--bg);
+  box-shadow: 0 30px 80px rgba(0, 0, 0, 0.45);
+  overflow: hidden;
+  opacity: 0;
+  transform: translateY(12px) scale(0.985);
+  transition: transform var(--sheet-fade) cubic-bezier(0.2, 0.8, 0.2, 1),
+    opacity var(--sheet-fade) ease;
+}
+
+#bulk.on #bulk-sheet {
+  opacity: 1;
+  transform: none;
+}
+
+#bulk-head {
+  display: flex;
+  align-items: center;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elev);
+}
+
+#bulk-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 700;
+}
+
+#bulk-close {
+  margin-left: auto;
+  width: 30px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 50%;
+  background: transparent;
+  color: var(--muted);
+}
+
+#bulk-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
+}
+
+#bulk-body {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  padding: 16px 20px 18px;
+  gap: 12px;
+}
+
+.bulk-cols {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 260px minmax(0, 1fr);
+  gap: 18px;
+}
+
+.bulk-side,
+.bulk-main {
+  display: flex;
+  flex-direction: column;
+  min-height: 0;
+}
+
+#bulk-targets {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+  overflow-y: auto;
+  min-height: 0;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+}
+
+#bulk-targets li label {
+  display: grid;
+  grid-template-columns: 16px minmax(0, 1fr);
+  gap: 2px 8px;
+  padding: 6px 10px;
+  font-size: 12px;
+  cursor: pointer;
+}
+
+#bulk-targets li label:hover {
+  background: var(--bg-hover);
+}
+
+#bulk-targets input {
+  grid-row: span 2;
+}
+
+#bulk-targets .note {
+  font-size: 11px;
+}
+
+#bulk-commands {
+  flex: 1;
+  min-height: 120px;
+  padding: 10px 12px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  color: var(--text);
+  font-family: ui-monospace, Menlo, Consolas, "Courier New", monospace;
+  font-size: 12px;
+  resize: none;
+}
+
+#bulk-actions {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding-top: 10px;
+}
+
+#bulk-picked {
+  color: var(--muted);
+  font-size: 12px;
+}
+
+#bulk-send {
+  margin-left: auto;
+}
+
+#bulk-results {
+  max-height: 168px;
+  overflow-y: auto;
+  margin-top: 10px;
+  font-size: 12px;
+}
+
+#bulk-results .entry {
+  grid-template-columns: 128px minmax(0, 1fr);
+}
+
+.condition {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  margin: 8px 0 4px;
+}
+
+.condition .note {
+  font-size: 12px;
 }

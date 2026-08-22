@@ -7,6 +7,12 @@ import { state } from "./state.js";
 import { statusColor } from "./colors.js";
 import { PENDING_EVERY } from "./const.js";
 
+// список устройств перечитывает app.js. прямой импорт замкнул бы круг
+// config -> load -> tree -> terminal -> config
+function refreshAll() {
+  document.dispatchEvent(new CustomEvent("netmap:refresh"));
+}
+
 const panel = document.getElementById("panel");
 const configName = document.getElementById("config-name");
 const configIcon = document.getElementById("config-icon");
@@ -17,6 +23,12 @@ const versionList = document.getElementById("version-list");
 const pendingMark = document.getElementById("pending-mark");
 const configClose = document.getElementById("config-close");
 const configLock = document.getElementById("config-lock");
+
+const standardWhat = document.getElementById("standard-what");
+const standardPick = document.getElementById("standard-pick");
+const standardCheck = document.getElementById("standard-check");
+const standardName = document.getElementById("standard-name");
+const auditList = document.getElementById("audit-list");
 
 let configIp = null;
 let pendingTimer = null;
@@ -43,6 +55,8 @@ export async function openConfig(ip, locked = false) {
 
   await loadVersions();
   await showLatest();
+  await loadStandard();
+  await loadAudit();
 
   clearInterval(pendingTimer);
   pendingTimer = setInterval(loadPending, PENDING_EVERY);
@@ -96,10 +110,54 @@ export async function loadVersions() {
     button.append(when, what);
     button.onclick = () => showVersion(index);
     item.appendChild(button);
+
+    // на самой свежей откатывать нечего, она и есть текущая
+    if (version.restorable && index > 0) {
+      const back = document.createElement("button");
+      back.className = "link revert";
+      back.textContent = "откатить";
+      back.title = "Вернуть эту конфигурацию на устройство";
+      back.onclick = (event) => {
+        event.stopPropagation();
+        rollback(version);
+      };
+      item.appendChild(back);
+    }
+
     versionList.appendChild(item);
   });
 
   markPicked();
+}
+
+async function rollback(version) {
+  const name = configName.textContent;
+  const sure = confirm(
+    `Вернуть на ${name} конфигурацию от ${shortTime(version.at)}?\n\n` +
+      "Продукт вернёт прежние значения и удалит настройки, которых в этой версии нет. " +
+      "Текущая конфигурация останется в истории, откатиться обратно можно."
+  );
+  if (!sure) return;
+
+  setWhat("откат идёт", false);
+  try {
+    const done = await api(
+      `/api/devices/${configIp}/versions/${version.id}/rollback`,
+      { method: "POST" }
+    );
+    await loadVersions();
+    if (done.ok) {
+      await showLatest();
+    } else {
+      setWhat(`откат не завершён: ${done.detail}`, true);
+      paint(done.left || done.detail, true);
+    }
+    await loadStandard();
+    await loadAudit();
+    await refreshAll();
+  } catch (error) {
+    setWhat(`откат не удался: ${error.message}`, false);
+  }
 }
 
 function shortTime(at) {
@@ -195,6 +253,145 @@ function paint(text, asDiff) {
     configText.appendChild(row);
   }
 }
+
+async function loadStandard() {
+  if (!configIp) return;
+
+  const [drift, all] = await Promise.all([
+    api(`/api/baselines/devices/${configIp}`),
+    api("/api/baselines"),
+  ]);
+
+  const device = state.devices.find((item) => item.ip === configIp);
+  const vendor = device?.vendor || "";
+
+  standardPick.textContent = "";
+  const none = document.createElement("option");
+  none.value = "";
+  none.textContent = "не назначен";
+  standardPick.append(none);
+
+  for (const model of all.baselines) {
+    // эталон одного вендора на железо другого не ложится
+    if (vendor && model.vendor && model.vendor !== vendor) continue;
+    const option = document.createElement("option");
+    option.value = model.id;
+    option.textContent = `${model.name} (${model.devices})`;
+    standardPick.append(option);
+  }
+  standardPick.value = drift.baseline ? String(drift.baseline.id) : "";
+
+  standardCheck.hidden = !drift.baseline;
+  if (!drift.baseline) {
+    standardWhat.textContent =
+      "Эталон не назначен. Пока его нет, расхождения не отслеживаются.";
+    standardWhat.className = "note";
+    return;
+  }
+  if (drift.state === "match") {
+    standardWhat.textContent = `Совпадает с эталоном «${drift.baseline.name}».`;
+    standardWhat.className = "note good";
+  } else if (drift.state === "differs") {
+    const rows = (drift.diff || "").split("\n").length;
+    standardWhat.textContent =
+      `Расходится с эталоном «${drift.baseline.name}», ${rows} строк различий.`;
+    standardWhat.className = "note bad";
+  } else {
+    standardWhat.textContent = "Конфигурация ещё не снята, сверять не с чем.";
+    standardWhat.className = "note";
+  }
+}
+
+async function loadAudit() {
+  if (!configIp) return;
+  auditList.textContent = "";
+
+  let body;
+  try {
+    body = await api(`/api/devices/${configIp}/checks`);
+  } catch (error) {
+    return;
+  }
+
+  for (const item of body.checks) {
+    const row = document.createElement("li");
+    row.className = `audit ${item.state}`;
+
+    const mark = document.createElement("span");
+    mark.className = "mark";
+    mark.textContent = item.state === "pass" ? "✓" : item.state === "fail" ? "✕" : "—";
+
+    const title = document.createElement("span");
+    title.className = "name";
+    title.textContent = item.title || item.code;
+    title.title = item.why || "";
+
+    row.append(mark, title);
+
+    if (item.detail) {
+      const why = document.createElement("span");
+      why.className = "note";
+      why.textContent = item.detail;
+      row.append(why);
+    }
+    auditList.append(row);
+  }
+}
+
+standardCheck.onclick = async () => {
+  const drift = await api(`/api/baselines/devices/${configIp}`);
+  if (!drift.diff) {
+    setWhat("Совпадает с эталоном", true);
+    paint("расхождений нет", false);
+    return;
+  }
+  setWhat("Расхождение с эталоном", true);
+  paint(drift.diff, true);
+};
+
+document.getElementById("standard-attach").onclick = async () => {
+  const picked = standardPick.value;
+  try {
+    if (picked) {
+      await api(`/api/baselines/${picked}/devices`, {
+        method: "POST",
+        body: JSON.stringify({ ips: [configIp] }),
+      });
+    } else {
+      await api(`/api/baselines/devices/${configIp}`, { method: "DELETE" });
+    }
+    await loadStandard();
+    await refreshAll();
+  } catch (error) {
+    standardWhat.textContent = error.message;
+    standardWhat.className = "note bad";
+  }
+};
+
+document.getElementById("standard-make").onsubmit = async (event) => {
+  event.preventDefault();
+  const versionId = pickedVersion || configHistory[0]?.id;
+  if (!versionId) return;
+
+  try {
+    await api("/api/baselines", {
+      method: "POST",
+      body: JSON.stringify({ name: standardName.value, version_id: versionId }),
+    });
+    standardName.value = "";
+    await loadStandard();
+  } catch (error) {
+    standardWhat.textContent = error.message;
+    standardWhat.className = "note bad";
+  }
+};
+
+document.getElementById("audit-again").onclick = async () => {
+  auditList.textContent = "";
+  await api(`/api/devices/${configIp}/checks`, { method: "POST" });
+  await loadAudit();
+  await refreshAll();
+};
 
 configClose.onclick = closeConfig;
 backCurrent.onclick = showLatest;

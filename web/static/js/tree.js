@@ -8,6 +8,7 @@ import { state } from "./state.js";
 import { statusColor } from "./colors.js";
 import { relayout, showPorts, sizeNode } from "./map.js";
 import { openTerminal } from "./terminal.js";
+import { openConfig } from "./config.js";
 import { refreshAll } from "./load.js";
 import { PICKED_SCALE } from "./const.js";
 
@@ -184,8 +185,12 @@ function deviceDetails(device) {
 
   if (device.authorized) {
     box.append(
+      condition(device),
       button("Терминал", "", () =>
         openTerminal(device.ip, device.hostname || device.ip)
+      ),
+      button("Конфигурация, эталон и проверки", "secondary", () =>
+        openConfig(device.ip)
       ),
       button("Забыть учётные данные", "secondary", () => forgetDevice(device.ip))
     );
@@ -193,6 +198,33 @@ function deviceDetails(device) {
     box.append(loginForm(device));
   }
 
+  return box;
+}
+
+const DRIFT = {
+  match: ["совпадает с эталоном", "good"],
+  differs: ["расходится с эталоном", "bad"],
+};
+
+function condition(device) {
+  const box = document.createElement("div");
+  box.className = "condition";
+
+  const [word, tone] = DRIFT[device.drift] || ["эталон не назначен", ""];
+  const drift = document.createElement("p");
+  drift.className = `note ${tone}`;
+  drift.textContent = word;
+
+  const audit = document.createElement("p");
+  if (device.failed_checks) {
+    audit.className = "note bad";
+    audit.textContent = `проверок не пройдено: ${device.failed_checks}`;
+  } else {
+    audit.className = "note";
+    audit.textContent = "проверки пройдены";
+  }
+
+  box.append(drift, audit);
   return box;
 }
 

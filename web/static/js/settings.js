@@ -194,6 +194,54 @@ passwordForm.addEventListener("submit", async (event) => {
   }
 });
 
+const backupSaid = document.getElementById("backup-said");
+
+document.getElementById("backup-save").addEventListener("click", async () => {
+  backupSaid.textContent = "собираю копию";
+  try {
+    const response = await fetch("/api/backup/export");
+    if (!response.ok) throw new Error("выгрузка не удалась");
+
+    const blob = await response.blob();
+    const name = (response.headers.get("Content-Disposition") || "")
+      .match(/filename="([^"]+)"/)?.[1] || "netmap.json.gz";
+
+    const link = document.createElement("a");
+    link.href = URL.createObjectURL(blob);
+    link.download = name;
+    link.click();
+    URL.revokeObjectURL(link.href);
+    backupSaid.textContent = `${name}, ${Math.round(blob.size / 1024)} КБ`;
+  } catch (error) {
+    backupSaid.textContent = error.message;
+  }
+});
+
+document.getElementById("backup-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const picked = document.getElementById("backup-file").files[0];
+  if (!picked) {
+    backupSaid.textContent = "файл не выбран";
+    return;
+  }
+
+  backupSaid.textContent = "читаю копию";
+  try {
+    // файл уходит телом запроса как есть, разбирает его сервер
+    const response = await fetch("/api/backup/import", {
+      method: "POST",
+      body: picked,
+    });
+    const body = await response.json();
+    if (!response.ok) throw new Error(body.detail || "восстановление не удалось");
+    backupSaid.textContent =
+      `добавлено версий ${body.configs}, эталонов ${body.baselines}, ` +
+      `пропущено совпадающих ${body.skipped}`;
+  } catch (error) {
+    backupSaid.textContent = error.message;
+  }
+});
+
 document.getElementById("leave").addEventListener("click", async () => {
   await fetch("/api/logout", { method: "POST" });
   location.href = "/";

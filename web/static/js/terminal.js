@@ -7,14 +7,10 @@ import { mixColor } from "./colors.js";
 import { focusNode } from "./map.js";
 import { layoutLabels } from "./labels.js";
 import { closeConfig, loadVersions, lockConfig, openConfig, shownIp } from "./config.js";
+import { addTab, markTab, openDock, paneFor, removeTab, showTab } from "./dock.js";
 import { THEME_FADE } from "./const.js";
 
-const termBox = document.getElementById("terminal");
-const termBody = document.getElementById("term-body");
-const termList = document.getElementById("term-list");
-
 const sessions = new Map();
-let active = null;
 
 // фон прозрачный, сквозь него видно панель, а она меняется плавно
 const TERM_DARK = {
@@ -56,22 +52,23 @@ export function fadeTerminals(light) {
 }
 
 export function openTerminal(ip, name) {
-  termBox.hidden = false;
   if (!sessions.has(ip)) createSession(ip, name);
-  showSession(ip);
+  openDock(tabId(ip));
+  showTab(tabId(ip));
   cy.resize();
   layoutLabels();
 
-  // терминал закрывает низ карты, устройство иначе остаётся под ним
+  // панель закрывает низ карты, устройство иначе остаётся под ней
   const node = cy.getElementById(ip);
   if (node.length) focusNode(node);
 }
 
+function tabId(ip) {
+  return `term:${ip}`;
+}
+
 function createSession(ip, name) {
-  const pane = document.createElement("div");
-  pane.className = "term-pane";
-  pane.hidden = true;
-  termBody.append(pane);
+  const pane = paneFor(tabId(ip));
 
   const term = new Terminal({
     fontFamily: 'ui-monospace, Menlo, Consolas, "Courier New", monospace',
@@ -87,6 +84,19 @@ function createSession(ip, name) {
 
   const session = { ip, name, term, fit, pane, socket: null, state: "wait" };
   sessions.set(ip, session);
+
+  addTab({
+    id: tabId(ip),
+    label: name,
+    pane,
+    state: "wait",
+    onShow: () => {
+      fitSession(session);
+      term.focus();
+    },
+    onResize: () => fitSession(session),
+    onClose: () => shutSession(session),
+  });
 
   term.onData((data) => send(session, { type: "input", data }));
   term.onResize(({ cols, rows }) => send(session, { type: "size", cols, rows }));
@@ -104,7 +114,7 @@ function connect(session) {
 
   socket.onopen = () => {
     session.state = "online";
-    renderTabs();
+    markTab(tabId(session.ip), "online");
     send(session, { type: "size", cols: session.term.cols, rows: session.term.rows });
   };
 
@@ -129,7 +139,7 @@ function connect(session) {
 
   socket.onclose = () => {
     session.state = "offline";
-    renderTabs();
+    markTab(tabId(session.ip), "offline");
     session.term.write("\r\n\x1b[2m— сессия закрыта —\x1b[0m\r\n");
     // сервер снял конфигурацию при закрытии, история могла пополниться
     if (shownIp() === session.ip) {
@@ -140,7 +150,7 @@ function connect(session) {
 
   socket.onerror = () => {
     session.state = "offline";
-    renderTabs();
+    markTab(tabId(session.ip), "offline");
   };
 }
 
@@ -150,21 +160,8 @@ function send(session, message) {
   }
 }
 
-function showSession(ip) {
-  active = ip;
-  for (const session of sessions.values()) {
-    session.pane.hidden = session.ip !== ip;
-  }
-  renderTabs();
-
-  const session = sessions.get(ip);
-  if (!session) return;
-  fitSession(session);
-  session.term.focus();
-}
-
 export function fitSession(session) {
-  if (!session || session.pane.hidden || termBox.hidden) return;
+  if (!session || session.pane.hidden) return;
   try {
     session.fit.fit();
   } catch (error) {
@@ -173,88 +170,20 @@ export function fitSession(session) {
 }
 
 export function fitActive() {
-  fitSession(sessions.get(active));
+  for (const session of sessions.values()) fitSession(session);
 }
 
-function closeSession(ip) {
-  const session = sessions.get(ip);
-  if (!session) return;
-
+function shutSession(session) {
   if (session.socket) {
     session.socket.onclose = null;
     session.socket.close();
   }
   session.term.dispose();
-  session.pane.remove();
-  sessions.delete(ip);
-
-  const next = sessions.keys().next();
-  if (next.done) {
-    termBox.hidden = true;
-    active = null;
-    renderTabs();
-  } else {
-    showSession(next.value);
-  }
+  sessions.delete(session.ip);
   cy.resize();
   layoutLabels();
 }
 
-function renderTabs() {
-  termList.textContent = "";
-  for (const session of sessions.values()) {
-    const tab = document.createElement("button");
-    tab.className = "term-tab " + session.state;
-    if (session.ip === active) tab.classList.add("active");
-
-    const live = document.createElement("i");
-    live.className = "live";
-
-    const name = document.createElement("span");
-    name.textContent = session.name;
-
-    const shut = document.createElement("span");
-    shut.className = "shut";
-    shut.textContent = "✕";
-    shut.title = "Закрыть сессию";
-    shut.addEventListener("click", (event) => {
-      event.stopPropagation();
-      closeSession(session.ip);
-    });
-
-    tab.append(live, name, shut);
-    tab.addEventListener("click", () => showSession(session.ip));
-    termList.append(tab);
-  }
+export function closeTerminal(ip) {
+  removeTab(tabId(ip));
 }
-
-// крестик справа прячет панель, сессии остаются живыми
-document.getElementById("term-hide").addEventListener("click", () => {
-  termBox.hidden = true;
-  cy.resize();
-  layoutLabels();
-});
-
-document.getElementById("term-grip").addEventListener("mousedown", (event) => {
-  event.preventDefault();
-  const startY = event.clientY;
-  const startHeight = termBox.offsetHeight;
-
-  const move = (moveEvent) => {
-    const height = Math.min(
-      Math.max(startHeight + startY - moveEvent.clientY, 120),
-      window.innerHeight - 220
-    );
-    termBox.style.height = `${height}px`;
-    cy.resize();
-    fitActive();
-  };
-  const stop = () => {
-    document.removeEventListener("mousemove", move);
-    document.removeEventListener("mouseup", stop);
-    layoutLabels();
-  };
-
-  document.addEventListener("mousemove", move);
-  document.addEventListener("mouseup", stop);
-});
