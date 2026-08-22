@@ -4,11 +4,16 @@ import time
 
 from fastapi import HTTPException
 
-from . import drivers, inventory, scanner, ssh, store
+from . import drivers, inventory, journal, scanner, ssh, store
 
 SCAN_EVERY = 60
 LLDP_EVERY = 5
 SUBNET = "subnet"
+
+# раздел 6.4: снятие конфигураций выполняется один раз в сутки. чаще незачем,
+# управляющий процессор устройства обрабатывает SSH сам
+SNAPSHOT_EVERY = 24 * 3600
+SNAPSHOT_AT = "last_snapshot"
 
 
 def remember(value: str) -> None:
@@ -62,10 +67,52 @@ async def run() -> None:
             continue
         if cycle % LLDP_EVERY == 0:
             await refresh_neighbors()
+        if snapshot_due():
+            await daily_snapshot()
 
         # крупную сеть обход проходит минутами, и без этой паузы машина
         # оказывается занята им почти непрерывно
         pause = max(SCAN_EVERY, time.monotonic() - started)
+
+
+def snapshot_due() -> bool:
+    last = store.setting(SNAPSHOT_AT)
+    if not last:
+        return True
+    try:
+        return time.time() - float(last) >= SNAPSHOT_EVERY
+    except ValueError:
+        return True
+
+
+async def daily_snapshot() -> None:
+    """суточный обход за конфигурациями, по одной записи в журнал на весь обход"""
+    devices = _ready()
+    store.save_setting(SNAPSHOT_AT, str(time.time()))
+    if not devices:
+        return
+
+    changed: list[str] = []
+    failed: list[str] = []
+
+    def take(device: dict) -> None:
+        ip = device["ip"]
+        try:
+            if inventory.collect_config(ip, "daily"):
+                changed.append(ip)
+        except (ssh.SshError, OSError, HTTPException, inventory.NotNetworkDevice) as exc:
+            failed.append(ip)
+            journal.record(journal.CONFIG_TAKEN, None, ip, str(exc), False)
+
+    await _spread(take, devices)
+    journal.record(
+        journal.CONFIG_TAKEN,
+        None,
+        None,
+        f"суточный обход: устройств {len(devices)}, "
+        f"с изменениями {len(changed)}, не ответили {len(failed)}",
+        not failed,
+    )
 
 
 async def catch_up() -> None:

@@ -2,7 +2,7 @@
 
 from fastapi import HTTPException
 
-from . import drivers, scanner, ssh, store
+from . import baseline, checks, drivers, scanner, ssh, store
 
 
 class NotNetworkDevice(Exception):
@@ -35,8 +35,15 @@ def online(device: dict) -> bool:
 def identify(ip: str, username: str, password: str):
     for driver in drivers.ALL:
         output = ssh.run(ip, username, password, driver.version_command)
-        if driver.matches(output):
-            return driver, driver.parse_version(output)
+        if not driver.matches(output):
+            continue
+
+        identity = driver.parse_version(output)
+        if not identity["hostname"] and driver.hostname_command:
+            identity["hostname"] = driver.parse_hostname(
+                ssh.run(ip, username, password, driver.hostname_command)
+            )
+        return driver, identity
     raise NotNetworkDevice
 
 
@@ -94,7 +101,31 @@ def collect_config(ip: str, source: str) -> dict | None:
 
     username, password = require_credentials(ip)
     output = ssh.run(ip, username, password, driver.config_command)
-    return store.save_config(ip, driver.normalize_config(output), source)
+
+    flat = None
+    if driver.config_flat_command:
+        flat = driver.normalize_flat(
+            ssh.run(ip, username, password, driver.config_flat_command)
+        )
+
+    version = store.save_config(ip, driver.normalize_config(output), source, flat)
+    run_checks(ip)
+    baseline.refresh(ip)
+    return version
+
+
+def run_checks(ip: str) -> list[dict]:
+    """проверки идут по последнему снимку, лезть на устройство второй раз незачем"""
+    device = store.device(ip) or {}
+    latest = store.last_config(ip)
+    # правила ищут настройку в строке, поэтому нужен командный вид, где одна
+    # настройка занимает ровно строку. в иерархическом она разбита на уровни
+    body = ""
+    if latest:
+        body = latest["flat"] or latest["text"]
+    results = checks.run(body, device.get("vendor") or "", store.credentials(ip))
+    store.save_checks(ip, results)
+    return results
 
 
 def lldp_auto() -> bool:
