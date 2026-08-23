@@ -69,7 +69,6 @@ def offer() -> dict:
 
 @router.get("/recovery")
 def recovery_offered() -> dict:
-    """выдавался ли ключ восстановления, от этого зависит форма на входе"""
     return {"offered": auth.recovery_offered()}
 
 
@@ -147,7 +146,6 @@ def login(body: Credentials, response: Response, later: BackgroundTasks) -> dict
 
 @router.post("/recover")
 def recover(body: Recovery, response: Response, later: BackgroundTasks) -> dict:
-    """вход по ключу восстановления, он же задаёт новый пароль"""
     if not auth.recovery_offered():
         raise HTTPException(400, "ключ восстановления не выдавался")
 

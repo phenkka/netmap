@@ -62,7 +62,6 @@ async def scan(subnet: str) -> list[dict]:
 
 
 async def _banners(ips: list[str]) -> list[str]:
-    """приветствие читается по SSH, поэтому пачками, как и остальной опрос"""
     limit = asyncio.Semaphore(ssh.AT_ONCE)
 
     async def guarded(ip: str) -> str:
@@ -159,7 +158,6 @@ def local_addresses() -> set[str]:
 
 
 async def any_open(subnet: str) -> str | None:
-    """первый адрес с открытым 22 портом, дальше сеть не обходится"""
     network = ipaddress.ip_network(subnet, strict=False)
     own = await asyncio.to_thread(local_addresses)
     hosts = [str(h) for h in network.hosts() if str(h) not in own]
@@ -187,7 +185,6 @@ async def any_open(subnet: str) -> str | None:
 
 
 def route_to(ip: str) -> str | None:
-    """через какой интерфейс машина пойдёт к адресу, None если пути нет"""
     try:
         result = subprocess.run(
             ["ip", "route", "get", ip], capture_output=True, text=True, timeout=5
@@ -201,7 +198,6 @@ def route_to(ip: str) -> str | None:
 
 
 def local_networks() -> list[str]:
-    """подсети, к которым машина подключена напрямую"""
     try:
         output = subprocess.run(
             ["ip", "-o", "-4", "addr", "show", "scope", "global"],

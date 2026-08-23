@@ -1,10 +1,3 @@
-"""выгрузка и восстановление копий
-
-Вторая половина резервного копирования: история конфигураций живёт в базе
-продукта, и её саму тоже надо уметь унести и вернуть. Копия это gzip поверх
-JSON, чтобы её можно было прочитать без продукта.
-"""
-
 import gzip
 import json
 from datetime import datetime, timezone
@@ -66,7 +59,6 @@ def pack() -> bytes:
 
 
 def unpack(blob: bytes) -> dict:
-    """кладёт версии из копии обратно. учётные данные в копию не попадают"""
     try:
         body = json.loads(gzip.decompress(blob).decode("utf-8"))
     except (OSError, ValueError, UnicodeDecodeError):

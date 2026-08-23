@@ -1,12 +1,3 @@
-"""ключ данных и обёртки к нему
-
-Пароли к оборудованию шифруются одним общим ключом. Сам ключ попадает на диск
-только завёрнутым: в обёртку от пароля администратора или от ключа
-восстановления. Обёрток столько, сколько администраторов, но внутри каждой
-лежит один и тот же ключ. Поэтому смена пароля перезаворачивает одну обёртку
-и оборудования не касается.
-"""
-
 import base64
 import json
 import os
@@ -43,7 +34,6 @@ def new_salt() -> str:
 
 
 def new_recovery() -> str:
-    """ключ восстановления, показывается один раз и больше нигде не всплывает"""
     return "-".join(secrets.token_hex(3) for _ in range(4))
 
 
@@ -52,7 +42,6 @@ def wrap(key: bytes, secret: str, salt: str) -> str:
 
 
 def unwrap(blob: str, secret: str, salt: str) -> bytes | None:
-    """None означает, что пароль или ключ восстановления не подошёл"""
     return _open(_kek(secret, salt), blob, WRAP)
 
 
@@ -63,7 +52,6 @@ def unlock(key: bytes) -> None:
 
 
 def lock() -> None:
-    """хранение выключили, ключу в памяти делать нечего"""
     global _key
     with _lock:
         _key = None
@@ -75,7 +63,6 @@ def unlocked() -> bool:
 
 
 def seal(ip: str, username: str, password: str) -> str | None:
-    """учётные данные одной записью. адрес подмешан, чужую строку не подставить"""
     key = current()
     if key is None:
         return None
@@ -95,7 +82,6 @@ def unseal(ip: str, box: str) -> tuple[str, str] | None:
 
 
 def current() -> bytes | None:
-    """ключ из памяти. нужен, чтобы завернуть копию под ещё один пароль"""
     with _lock:
         return _key
 

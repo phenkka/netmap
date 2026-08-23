@@ -136,7 +136,6 @@ async def _notify(socket: WebSocket, kind: str, **fields) -> None:
 
 
 def _mode_from_tail(tail: str, prompts) -> bool | None:
-    """по хвосту вывода говорит, в режиме конфигурации человек или нет"""
     prompt, marker = prompts
     # в хвосте лежит несколько приглашений, верно только напечатанное последним
     last = None

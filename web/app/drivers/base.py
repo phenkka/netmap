@@ -2,7 +2,6 @@ import re
 
 
 class Driver:
-    """добавить вендора — добавить такой класс"""
 
     name = ""
     vendor = ""
@@ -97,16 +96,10 @@ class Driver:
 
     @classmethod
     def session(cls, commands: list[str]) -> list[str]:
-        """команды человека, обёрнутые входом в режим настройки и сохранением"""
         return [*cls.enter_config, *commands, *cls.leave_config]
 
     @classmethod
     def restore_commands(cls, flat: str, current: str = "") -> list[str]:
-        """откат без учёта текущего состояния только возвращает прежние значения
-
-        Настройку, добавленную после снимка, такой откат не убирает. Вендор,
-        умеющий адресно удалять, переопределяет этот метод.
-        """
         return cls.session([line for line in flat.splitlines() if line.strip()])
 
     # ругань устройства в ответ на команду. проверяется по началу строки,
@@ -115,7 +108,6 @@ class Driver:
 
     @classmethod
     def applied_cleanly(cls, output: str) -> tuple[bool, str]:
-        """по ответу устройства понимает, приняло оно команды или ругнулось"""
         for line in output.splitlines():
             for pattern in cls.complaints:
                 if re.search(pattern, line, re.IGNORECASE):

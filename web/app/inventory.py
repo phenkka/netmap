@@ -1,5 +1,3 @@
-"""что известно об устройстве и как это узнать, поверх store и drivers"""
-
 from fastapi import HTTPException
 
 from . import baseline, checks, drivers, scanner, ssh, store
@@ -115,7 +113,6 @@ def collect_config(ip: str, source: str) -> dict | None:
 
 
 def run_checks(ip: str) -> list[dict]:
-    """проверки идут по последнему снимку, лезть на устройство второй раз незачем"""
     device = store.device(ip) or {}
     latest = store.last_config(ip)
     # правила ищут настройку в строке, поэтому нужен командный вид, где одна
@@ -137,7 +134,6 @@ def set_lldp_auto(auto: bool) -> None:
 
 
 def ensure_lldp(ip: str, driver, username: str, password: str) -> str | None:
-    """дописывает настройку LLDP и отдаёт, чем дело кончилось"""
     if not driver.lldp_state_command or not driver.lldp_enable_commands:
         return None
 

@@ -1,11 +1,3 @@
-"""отправка команд на оборудование: групповое применение и откат
-
-Групповое применение даёт основную часть расчётной экономии и оно же способно
-разослать ошибку сразу на всю группу. Поэтому перед каждой правкой снимается
-версия, устройство с чужой несохранённой правкой пропускается, а результат по
-каждому устройству возвращается отдельно.
-"""
-
 import asyncio
 import difflib
 
@@ -13,7 +5,6 @@ from . import drivers, inventory, journal, ssh, store
 
 
 def busy(ip: str, driver, username: str, password: str) -> str:
-    """чужая незавершённая правка в общем черновике устройства"""
     if not driver.pending_diff_commands:
         return ""
     pending = driver.clean_pending_diff(
@@ -29,7 +20,6 @@ def _prepare(ip: str) -> tuple:
 
 
 def _discard(ip: str, driver, username: str, password: str) -> None:
-    """после отказа черновик остаётся с правкой и блокирует следующую"""
     if not driver.discard_commands:
         return
     try:
@@ -39,7 +29,6 @@ def _discard(ip: str, driver, username: str, password: str) -> None:
 
 
 def send(ip: str, commands: list[str], source: str) -> dict:
-    """одно устройство: проверка черновика, отправка, снимок после"""
     result = {"ip": ip, "ok": False, "detail": "", "version": None}
     try:
         driver, username, password = _prepare(ip)
@@ -82,7 +71,6 @@ async def group(ips: list[str], commands: list[str], login: str | None) -> list[
 
 
 def rollback(ip: str, version_id: int, login: str | None) -> dict:
-    """возвращает сохранённую конфигурацию на устройство и сверяет результат"""
     target = store.config(version_id)
     if not target or target["ip"] != ip:
         return {"ip": ip, "ok": False, "detail": "версия не найдена", "left": ""}
@@ -127,7 +115,6 @@ def rollback(ip: str, version_id: int, login: str | None) -> dict:
 
 
 def _left(wanted: str, got: str) -> str:
-    """что осталось несовпавшим: откат применяет команды поверх, а не заменяет"""
     if wanted.strip() == got.strip():
         return ""
     return "\n".join(

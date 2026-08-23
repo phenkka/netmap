@@ -231,10 +231,58 @@ button.secondary {
   color: var(--muted);
 }
 
+/* всплывающее сообщение поверх карты, в правом верхнем углу под шапкой */
 #status {
-  color: var(--muted);
-  margin-left: auto;
+  position: fixed;
+  top: 60px;
+  right: 16px;
+  z-index: 60;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  max-width: 340px;
+  padding: 11px 11px 11px 14px;
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  background: var(--bg-elev);
+  box-shadow: 0 6px 20px rgba(0, 0, 0, 0.16);
+  color: var(--text);
   font-size: 13px;
+  line-height: 1.35;
+  opacity: 0;
+  transform: translateY(-6px);
+  /* пока сообщения нет, оно не должно перехватывать клики по карте */
+  pointer-events: none;
+  transition: opacity 0.2s ease, transform 0.2s ease;
+}
+
+#status.shown {
+  opacity: 1;
+  transform: none;
+  pointer-events: auto;
+}
+
+#status-text {
+  padding-top: 1px;
+}
+
+#status-close {
+  flex: none;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border: 0;
+  border-radius: 6px;
+  background: transparent;
+  color: var(--muted);
+  font-size: 11px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+#status-close:hover {
+  background: var(--bg-hover);
+  color: var(--text);
 }
 
 body.entrance {
@@ -543,6 +591,9 @@ aside.config #tree {
   flex-direction: column;
   min-height: 0;
   flex: 1;
+  /* секции идут одной лентой и прокручиваются вместе. с делением на доли
+     текущей конфигурации не оставалось высоты, и низ панели обрезался */
+  overflow-y: auto;
   opacity: 0;
   transition: opacity 0.42s ease-in-out;
 }
@@ -553,6 +604,10 @@ aside.config #config-view {
 }
 
 #config-head {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: var(--bg);
   display: flex;
   align-items: center;
   gap: 8px;
@@ -637,7 +692,7 @@ aside.config #config-view {
 
 /* история занимает верх, конфигурация низ, делятся по горизонтали */
 #history {
-  flex: 0 0 38%;
+  flex: none;
   display: flex;
   flex-direction: column;
   min-height: 0;
@@ -650,6 +705,7 @@ aside.config #config-view {
   padding: 0 0 6px;
   overflow-y: auto;
   min-height: 0;
+  max-height: 210px;
 }
 
 .version {
@@ -693,7 +749,7 @@ aside.config #config-view {
   display: flex;
   flex-direction: column;
   min-height: 0;
-  flex: 1;
+  flex: none;
 }
 
 #config-text {
@@ -701,7 +757,8 @@ aside.config #config-view {
   padding: 0 12px 12px;
   overflow: auto;
   min-height: 0;
-  flex: 1;
+  flex: none;
+  height: 46vh;
   font: 11px/1.45 ui-monospace, SFMono-Regular, Menlo, monospace;
   white-space: pre;
   color: var(--text);
@@ -1077,16 +1134,18 @@ table.neighbors td:last-child {
 }
 
 .link {
-  background: transparent;
-  border: 0;
-  padding: 2px;
-  color: var(--muted);
+  background: var(--bg-elev);
+  border: 1px solid var(--border);
+  border-radius: 7px;
+  padding: 3px 9px;
+  color: var(--text);
   font-size: 12px;
+  cursor: pointer;
 }
 
 .link:hover {
   color: var(--text);
-  background: transparent;
+  background: var(--bg-hover);
 }
 
 /* выбор режима в мастере: карточка целиком кликается, выбранная подсвечена */
@@ -1605,7 +1664,7 @@ button.danger:hover {
 /* ---------- эталон и проверки в панели конфигурации ---------- */
 
 #history {
-  flex: 0 0 26%;
+  flex: none;
 }
 
 #standard,
@@ -1665,8 +1724,33 @@ button.danger:hover {
   list-style: none;
   margin: 0;
   padding: 0;
-  max-height: 190px;
-  overflow-y: auto;
+  transition: filter 0.2s ease, opacity 0.2s ease;
+}
+
+/* на время повторной проверки список остаётся на месте и размывается.
+   если его очистить, панель дёргается: содержимое пропадает и появляется */
+#audit {
+  position: relative;
+}
+
+#audit.busy #audit-list {
+  filter: blur(2px);
+  opacity: 0.45;
+  pointer-events: none;
+}
+
+#audit.busy::after {
+  content: "";
+  position: absolute;
+  left: 50%;
+  top: 55%;
+  width: 22px;
+  height: 22px;
+  margin: -11px 0 0 -11px;
+  border: 2px solid var(--accent);
+  border-top-color: transparent;
+  border-radius: 50%;
+  animation: spin 0.7s linear infinite;
 }
 
 .audit {

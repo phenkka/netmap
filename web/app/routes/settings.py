@@ -1,5 +1,3 @@
-"""окно настроек: сеть, поведение продукта, доступы, учётная запись"""
-
 import ipaddress
 
 from fastapi import APIRouter, BackgroundTasks, HTTPException, Request

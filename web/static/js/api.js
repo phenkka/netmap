@@ -9,6 +9,18 @@ export async function api(path, options) {
   return body;
 }
 
+let statusTimer;
+
+// сообщение всплывает в углу и само уходит. раньше оно оставалось в шапке
+// навсегда, и через минуту уже нельзя было понять, к какому действию относится
 export function setStatus(text) {
-  document.getElementById("status").textContent = text;
+  const box = document.getElementById("status");
+  document.getElementById("status-text").textContent = text;
+  box.classList.toggle("shown", Boolean(text));
+  clearTimeout(statusTimer);
+  if (text) {
+    statusTimer = setTimeout(() => box.classList.remove("shown"), 6000);
+  }
 }
+
+document.getElementById("status-close").onclick = () => setStatus("");

@@ -68,7 +68,6 @@ class NokiaSrLinux(Driver):
 
     @classmethod
     def restore_commands(cls, flat: str, current: str = "") -> list[str]:
-        """к возврату прежних значений добавляет удаление того, чего в снимке нет"""
         target = [line for line in flat.splitlines() if line.strip()]
         commands: list[str] = []
 
@@ -88,7 +87,6 @@ class NokiaSrLinux(Driver):
 
     @staticmethod
     def _path(line: str) -> str:
-        """путь настройки без значения: set / system information location "..." """
         body = line.strip()
         if not body.startswith("set "):
             return ""

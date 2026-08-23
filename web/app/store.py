@@ -165,7 +165,6 @@ def save_detected(
 
 
 def bump_misses(ips: list[str]) -> None:
-    """устройство не ответило на обходе, счётчик сбросит первый же ответ"""
     if not ips:
         return
     with _pool.connection() as conn:
@@ -255,7 +254,6 @@ def neighbors_of(ip: str) -> list[dict]:
 
 
 def save_config(ip: str, text: str, source: str, flat: str | None = None) -> dict | None:
-    """пишет новую версию, если конфигурация изменилась, иначе отдаёт None"""
     digest = hashlib.sha256(text.encode("utf-8")).hexdigest()
     lines = text.count("\n") + 1
 
@@ -309,7 +307,6 @@ def configs(ip: str) -> list[dict]:
 
 
 def restore_all_configs() -> list[dict]:
-    """выгрузка копий: все версии всех устройств, вместе с текстом"""
     with _pool.connection() as conn:
         rows = conn.execute("SELECT * FROM configs ORDER BY id").fetchall()
     return [_unpack(row) for row in rows]
@@ -318,7 +315,6 @@ def restore_all_configs() -> list[dict]:
 def insert_config(
     ip: str, at: str, sha256: str, lines: int, source: str, text: str, flat: str | None
 ) -> bool:
-    """восстановление из копии. одинаковый снимок второй раз не заводим"""
     with _pool.connection() as conn:
         exists = conn.execute(
             "SELECT 1 FROM configs WHERE ip = %s AND at = %s AND sha256 = %s",
@@ -419,7 +415,6 @@ def save_user(
 def save_password(
     login: str, password_hash: str, key_salt: str | None, wrapped_key: str | None
 ) -> None:
-    """новый пароль и перезавёрнутая под него копия ключа, одной записью"""
     with _pool.connection() as conn:
         conn.execute(
             """
@@ -462,7 +457,6 @@ def forget_credentials(ip: str) -> None:
 
 
 def load_credentials() -> int:
-    """вход администратора развернул ключ, раскладываем доступы обратно в память"""
     with _pool.connection() as conn:
         rows = conn.execute("SELECT ip, box FROM secrets").fetchall()
 
@@ -478,7 +472,6 @@ def load_credentials() -> int:
 
 
 def keep_credentials() -> int:
-    """режим хранения включили на ходу, шифруем то, что уже лежит в памяти"""
     with _credentials_lock:
         known = dict(_credentials)
     for ip, (username, password) in known.items():
@@ -487,7 +480,6 @@ def keep_credentials() -> int:
 
 
 def wipe_secrets() -> None:
-    """переход в режим, где доступы на диске не хранятся"""
     with _pool.connection() as conn:
         conn.execute("DELETE FROM secrets")
 
@@ -516,7 +508,6 @@ def add_entry(
 
 
 def entries(after: int | None = None, limit: int = 300) -> list[dict]:
-    """после id отдаёт только новое, иначе последнюю страницу в прямом порядке"""
     with _pool.connection() as conn:
         if after is not None:
             return conn.execute(

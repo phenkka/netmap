@@ -73,7 +73,6 @@ def authorize(ip: str, body: AuthRequest, request: Request) -> dict:
 
 
 def _first_snapshot(ip: str, who: str | None) -> None:
-    """без него вручную заведённое устройство стоит без истории до ночного обхода"""
     try:
         version = inventory.collect_config(ip, "auth")
     except (HTTPException, ssh.SshError, OSError) as exc:

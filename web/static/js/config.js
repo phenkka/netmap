@@ -387,10 +387,15 @@ document.getElementById("standard-make").onsubmit = async (event) => {
 };
 
 document.getElementById("audit-again").onclick = async () => {
-  auditList.textContent = "";
-  await api(`/api/devices/${configIp}/checks`, { method: "POST" });
-  await loadAudit();
-  await refreshAll();
+  const box = document.getElementById("audit");
+  box.classList.add("busy");
+  try {
+    await api(`/api/devices/${configIp}/checks`, { method: "POST" });
+    await loadAudit();
+    await refreshAll();
+  } finally {
+    box.classList.remove("busy");
+  }
 };
 
 configClose.onclick = closeConfig;

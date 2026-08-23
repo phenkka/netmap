@@ -25,7 +25,6 @@ async def group(body: Batch, request: Request) -> dict:
 
 @router.get("/targets")
 def targets() -> dict:
-    """кому есть чем отправлять команды: производитель известен, пароль в памяти"""
     ready = []
     for device in store.devices():
         if device["status"] != "authorized" or not store.credentials(device["ip"]):

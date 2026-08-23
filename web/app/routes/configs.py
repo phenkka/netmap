@@ -67,7 +67,6 @@ def diff(ip: str, a: int | None = None, b: int | None = None) -> dict:
 
 @router.get("/{ip}/pending")
 def pending(ip: str) -> dict:
-    """несохранённые правки там, где вендор даёт черновик"""
     driver = inventory.driver_for(ip)
     if not driver.pending_diff_commands:
         return {"supported": False, "diff": ""}

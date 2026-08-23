@@ -10,11 +10,6 @@ from . import auth, routes, store, watch
 STATIC_DIR = Path(__file__).resolve().parent.parent / "static"
 
 class Fresh(StaticFiles):
-    """браузер обязан переспросить файл
-
-    Без этого обновление продукта оставляет в браузере старые модули, а они
-    ссылаются на файлы, которых уже нет. Тогда не работает вообще ничего.
-    """
 
     def file_response(self, *args, **kwargs):
         response = super().file_response(*args, **kwargs)

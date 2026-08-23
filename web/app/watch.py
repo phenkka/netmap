@@ -25,7 +25,6 @@ def subnet() -> str | None:
 
 
 async def sweep(target: str) -> list[dict]:
-    """обход подсети: ответившие обновляются, промолчавшие получают отметку"""
     found = await scanner.scan(target)
     for item in found:
         store.save_detected(
@@ -36,7 +35,6 @@ async def sweep(target: str) -> list[dict]:
 
 
 def _silent(target: str, answered: set[str]) -> list[str]:
-    """кого обход не нашёл. чужие подсети не трогаем, их никто не обходил"""
     network = ipaddress.ip_network(target, strict=False)
     missing = []
     for device in store.devices():
@@ -86,7 +84,6 @@ def snapshot_due() -> bool:
 
 
 async def daily_snapshot() -> None:
-    """суточный обход за конфигурациями, по одной записи в журнал на весь обход"""
     devices = _ready()
     store.save_setting(SNAPSHOT_AT, str(time.time()))
     if not devices:
@@ -116,22 +113,14 @@ async def daily_snapshot() -> None:
 
 
 async def catch_up() -> None:
-    """после входа администратора: доступы вернулись в память, проверяем ими сеть
-
-    Продукт мог простоять выключенным, поэтому за один проход подтверждаем
-    доступ, перечитываем соседей и снимаем конфигурации. Расхождения с последним
-    сохранённым состоянием становятся новыми версиями в истории.
-    """
     await _spread(_recheck, _ready())
 
 
 async def refresh_neighbors() -> None:
-    """о новом устройстве рассказывают уже авторизованные соседи"""
     await _spread(_reread_neighbors, _ready())
 
 
 def _ready() -> list[dict]:
-    """кого есть чем и куда опрашивать: пароль в памяти, устройство отвечает"""
     # в недоступное устройство SSH уходит на весь таймаут и держит пачку
     return [
         device
@@ -141,7 +130,6 @@ def _ready() -> list[dict]:
 
 
 async def _spread(job, devices: list[dict]) -> None:
-    """опрос идёт пачками, размер пачки задаёт ssh.AT_ONCE"""
     limit = asyncio.Semaphore(ssh.AT_ONCE)
 
     async def guarded(device: dict) -> None:

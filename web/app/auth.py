@@ -32,7 +32,6 @@ def create_user(
 
 
 def set_password(login: str, password: str, key: bytes | None) -> None:
-    """новый пароль и новая обёртка. пароли оборудования при этом не трогаются"""
     salt, wrapped = _wrap_for(password, key)
     store.save_password(login, _hasher.hash(password), salt, wrapped)
 
@@ -45,7 +44,6 @@ def _wrap_for(password: str, key: bytes | None) -> tuple[str | None, str | None]
 
 
 def first_run(login: str, password: str, keep: bool) -> str | None:
-    """заводит администратора. в режиме хранения отдаёт ключ восстановления"""
     # нет ключа — нечего заворачивать, и на диск ничего не уходит, как было раньше
     key = vault.new_key() if keep else None
     create_user(login, password, key=key)
@@ -62,12 +60,10 @@ def first_run(login: str, password: str, keep: bool) -> str | None:
 
 
 def keeping() -> bool:
-    """хранятся ли доступы к оборудованию между перезапусками"""
     return store.setting(KEEP) == "yes"
 
 
 def change_password(login: str, current: str, following: str) -> bool:
-    """пароль меняется вместе с обёрткой, оборудование при этом не трогается"""
     if not check(login, current):
         return False
     set_password(login, following, vault.current())
@@ -75,11 +71,6 @@ def change_password(login: str, current: str, following: str) -> bool:
 
 
 def start_keeping(login: str, password: str) -> str | None:
-    """включает хранение: новый ключ, обёртка под пароль, ключ восстановления
-
-    Пароль нужен именно здесь: обёртку не сделать, не зная его, а в сессии
-    пароля нет и быть не должно.
-    """
     if not check(login, password):
         return None
 
@@ -100,7 +91,6 @@ def start_keeping(login: str, password: str) -> str | None:
 
 
 def stop_keeping(login: str, password: str) -> bool:
-    """выключает хранение: с диска уходят и доступы, и все обёртки ключа"""
     if not check(login, password):
         return False
 
@@ -120,7 +110,6 @@ def recovery_offered() -> bool:
 
 
 def recover(login: str, recovery: str, password: str) -> bool:
-    """ключ восстановления открывает сейф и задаёт новый пароль"""
     salt = store.setting(RECOVERY_SALT)
     wrapped = store.setting(RECOVERY_WRAP)
     if not salt or not wrapped:
@@ -136,7 +125,6 @@ def recover(login: str, recovery: str, password: str) -> bool:
 
 
 def open_vault(user: dict, password: str) -> int:
-    """разворачивает копию ключа из обёртки администратора и возвращает доступы"""
     if not user.get("wrapped_key") or not user.get("key_salt"):
         return 0
     key = vault.unwrap(user["wrapped_key"], password, user["key_salt"])
@@ -148,7 +136,6 @@ def open_vault(user: dict, password: str) -> int:
 
 
 def restore_credentials() -> int:
-    """сколько доступов к оборудованию вернулось в память"""
     return store.load_credentials() if vault.unlocked() else 0
 
 
