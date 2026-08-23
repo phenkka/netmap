@@ -46,11 +46,11 @@ async def scan(subnet: str) -> list[dict]:
             return await _probe(ip)
 
     # свои адреса пропускаем, иначе продукт находит сам себя
-    own = await asyncio.to_thread(local_addresses)
+    own = await ssh.in_background(local_addresses)
     hosts = [str(h) for h in network.hosts() if str(h) not in own]
     results = await asyncio.gather(*(guarded(ip) for ip in hosts))
 
-    arp = await asyncio.to_thread(arp_table)
+    arp = await ssh.in_background(arp_table)
     found = [r for r in results if r]
 
     banners = await _banners([item["ip"] for item in found])
@@ -66,7 +66,7 @@ async def _banners(ips: list[str]) -> list[str]:
 
     async def guarded(ip: str) -> str:
         async with limit:
-            return await asyncio.to_thread(login_banner, ip)
+            return await ssh.in_background(login_banner, ip)
 
     return list(await asyncio.gather(*(guarded(ip) for ip in ips)))
 

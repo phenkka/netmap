@@ -2,7 +2,7 @@ import hashlib
 import os
 import threading
 import zlib
-from datetime import datetime, timezone
+from datetime import datetime, timedelta, timezone
 
 from psycopg.rows import dict_row
 from psycopg_pool import ConnectionPool
@@ -118,8 +118,9 @@ CREATE TABLE IF NOT EXISTS checks (
 );
 """
 
+# соединений хватает на все потоки обхода и сверх того на запросы из браузера
 _pool = ConnectionPool(
-    DSN, min_size=1, max_size=10, open=False, kwargs={"row_factory": dict_row}
+    DSN, min_size=1, max_size=20, open=False, kwargs={"row_factory": dict_row}
 )
 
 # в открытом виде учётные данные живут только здесь. на диск они уходят
@@ -505,6 +506,15 @@ def add_entry(
         "detail": detail,
         "ok": ok,
     }
+
+
+def trim_journal(days: int) -> int:
+    edge = (datetime.now(timezone.utc) - timedelta(days=days)).isoformat(
+        timespec="seconds"
+    )
+    with _pool.connection() as conn:
+        done = conn.execute("DELETE FROM journal WHERE at < %s", (edge,))
+        return done.rowcount
 
 
 def entries(after: int | None = None, limit: int = 300) -> list[dict]:

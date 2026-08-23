@@ -13,6 +13,8 @@ SUBNET = "subnet"
 # раздел 6.4: снятие конфигураций выполняется один раз в сутки. чаще незачем,
 # управляющий процессор устройства обрабатывает SSH сам
 SNAPSHOT_EVERY = 24 * 3600
+# журнал это аудит действий, он растёт сам по себе и без чистки съест диск
+JOURNAL_KEEP_DAYS = 180
 SNAPSHOT_AT = "last_snapshot"
 
 
@@ -67,6 +69,7 @@ async def run() -> None:
             await refresh_neighbors()
         if snapshot_due():
             await daily_snapshot()
+            store.trim_journal(JOURNAL_KEEP_DAYS)
 
         # крупную сеть обход проходит минутами, и без этой паузы машина
         # оказывается занята им почти непрерывно
@@ -134,7 +137,7 @@ async def _spread(job, devices: list[dict]) -> None:
 
     async def guarded(device: dict) -> None:
         async with limit:
-            await asyncio.to_thread(job, device)
+            await ssh.in_background(job, device)
 
     await asyncio.gather(*(guarded(device) for device in devices))
 

@@ -1,3 +1,6 @@
+import asyncio
+from concurrent.futures import ThreadPoolExecutor
+
 import paramiko
 
 TIMEOUT = 20
@@ -5,6 +8,18 @@ TIMEOUT = 20
 # управляющий процессор коммутатора плохо переносит наплыв сессий, поэтому
 # опрос идёт пачками. по одному 250 устройств обходились бы минутами
 AT_ONCE = 16
+
+# у обхода свой набор потоков, отдельный от того, куда попадают действия
+# оператора. с общим набором клик по терминалу или откату вставал в очередь
+# за опросом всех устройств, а размер общего набора питон считает от числа
+# ядер, и на двухъядерной машине обходу доставалось шесть потоков вместо
+# шестнадцати
+BACKGROUND = ThreadPoolExecutor(max_workers=AT_ONCE, thread_name_prefix="sweep")
+
+
+async def in_background(job, *args):
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(BACKGROUND, job, *args)
 
 
 class SshError(Exception):
