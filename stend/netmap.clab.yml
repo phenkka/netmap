@@ -8,6 +8,11 @@ topology:
   kinds:
     nokia_srlinux:
       image: ghcr.io/nokia/srlinux:latest
+      # Объявление адреса управления в LLDP. У SR Linux оно выключено по
+      # умолчанию, а без него сосед опознаётся только по имени, то есть уже
+      # после входа на него. Настоящее оборудование в сети управления обычно
+      # объявляет адрес, поэтому стенд ведёт себя так же.
+      startup-config: lldp.partial.cfg
     linux:
       image: alpine:3.20
 
