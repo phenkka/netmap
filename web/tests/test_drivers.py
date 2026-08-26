@@ -3,7 +3,13 @@ from pathlib import Path
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
-from app.drivers import AristaEos, CiscoIos, NokiaSrLinux  # noqa: E402
+from app.drivers import (  # noqa: E402
+    AristaEos,
+    CiscoIos,
+    FrRouting,
+    NokiaSrLinux,
+    OpenWrt,
+)
 
 SAMPLES = Path(__file__).resolve().parent.parent.parent / "stend" / "samples"
 
@@ -266,8 +272,110 @@ def nokia():
     check("свой пароль — проходит", tidy["no_default_users"], "pass")
 
 
+# Выводы FRRouting и OpenWrt сняты со стенда, узлы edge1 и ap1.
+FRR_VERSION = """\
+FRRouting 8.4_git (edge1) on Linux(6.18.12+kali-amd64).
+Copyright 1996-2005 Kunihiro Ishiguro, et al.
+configured with:
+    '--prefix=/usr' '--enable-vtysh'
+"""
+
+FRR_CONFIG = """\
+Building configuration...
+
+Current configuration:
+!
+frr version 8.4_git
+frr defaults traditional
+hostname edge1
+no ipv6 forwarding
+service integrated-vtysh-config
+!
+end
+"""
+
+# eth0 это сеть управления, там устройства видят друг друга без физической связи
+FRR_LLDP = """\
+-------------------------------------------------------------------------------
+LLDP neighbors:
+-------------------------------------------------------------------------------
+Interface:    eth0, via: LLDP, RID: 1, Time: 0 day, 00:00:39
+  Chassis:
+    ChassisID:    mac 86:d7:f4:b0:9b:e1
+    SysName:      edge2
+    MgmtIP:       172.20.20.22
+    Capability:   Router, on
+  Port:
+    PortID:       ifname eth0
+-------------------------------------------------------------------------------
+Interface:    eth1, via: LLDP, RID: 2, Time: 0 day, 00:05:17
+  Chassis:
+    ChassisID:    mac 1a:46:02:ff:00:00
+    SysName:      core1
+    MgmtIP:       172.20.20.11
+    Capability:   Bridge, off
+    Capability:   Router, on
+  Port:
+    PortID:       ifname ethernet-1/3
+-------------------------------------------------------------------------------
+"""
+
+OPENWRT_VERSION = """\
+DISTRIB_ID='OpenWrt'
+DISTRIB_RELEASE='SNAPSHOT'
+DISTRIB_REVISION='r34693-4271b0b0b4'
+DISTRIB_TARGET='x86/64'
+DISTRIB_ARCH='x86_64'
+DISTRIB_DESCRIPTION='OpenWrt SNAPSHOT r34693-4271b0b0b4'
+DISTRIB_TAINTS=''
+ap1
+"""
+
+
+def frrouting():
+    print("FRRouting")
+    check("опознаётся", FrRouting.matches(FRR_VERSION), True)
+
+    identity = FrRouting.parse_version(FRR_VERSION)
+    check("имя", identity["hostname"], "edge1")
+    check("версия", identity["version"], "8.4_git")
+    check("тип", FrRouting.device_type(identity["model"]), "router")
+
+    body = FrRouting.normalize_config(FRR_CONFIG)
+    check("шум убран", body.splitlines()[0], "!")
+    check("имя осталось", "hostname edge1" in body, True)
+
+    links = FrRouting.parse_neighbors(FRR_LLDP)
+    check("сеть управления отброшена", len(links), 1)
+    check("порт", links[0]["local_port"], "eth1")
+    check("сосед", links[0]["remote_name"], "core1")
+    check("порт соседа", links[0]["remote_port"], "ethernet-1/3")
+    check("адрес соседа", links[0]["remote_addr"], "172.20.20.11")
+    check("только включённые возможности", links[0]["capabilities"], "ROUTER")
+
+    # правка идёт потоком в vtysh, первой строкой он и запускается
+    commands = FrRouting.session(["ip route 10.0.0.0/8 blackhole"])
+    check("запуск vtysh", commands[0], "vtysh")
+    check("выход с сохранением", commands[-2:], ["write memory", "exit"])
+
+
+def openwrt():
+    print("OpenWrt")
+    check("опознаётся", OpenWrt.matches(OPENWRT_VERSION), True)
+
+    identity = OpenWrt.parse_version(OPENWRT_VERSION)
+    check("имя", identity["hostname"], "ap1")
+    check("модель", identity["model"], "x86/64")
+    check("версия", identity["version"], "SNAPSHOT r34693-4271b0b0b4")
+    check("тип", OpenWrt.device_type(identity["model"]), "wifi")
+
+    # у OpenWrt нет команд show, настройка переносится на устройство через uci
+    check("сохранение правки", OpenWrt.session(["uci set system.@system[0].hostname='ap9'"])[-1],
+          "uci commit")
+
+
 def main():
-    for suite in (nokia, cisco, arista):
+    for suite in (nokia, cisco, arista, frrouting, openwrt):
         suite()
         print()
 
