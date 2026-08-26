@@ -142,6 +142,7 @@ export async function loadGraph() {
   }
 
   const liveEdges = new Set();
+  let linked = 0;
   for (const link of graph.edges) {
     liveEdges.add(link.id);
     const data = {
@@ -151,7 +152,10 @@ export async function loadGraph() {
     };
     const known = cy.getElementById(link.id);
     if (known.length) known.data(data);
-    else arrive(cy.add({ group: "edges", data }));
+    else {
+      arrive(cy.add({ group: "edges", data }));
+      linked += 1;
+    }
   }
 
   cy.nodes().forEach((node) => {
@@ -161,7 +165,10 @@ export async function loadGraph() {
     if (!liveEdges.has(link.id())) link.remove();
   });
 
-  if (appeared > 0) {
+  // до первой связи схема лежит решёткой в один ряд, дерево строить не из чего.
+  // связи приходят позже узлов, по мере входа на устройства, и без пересчёта
+  // схема так и остаётся шеренгой
+  if (appeared > 0 || linked > 0) {
     relayout({ track: false, smooth: had });
   } else {
     if (!had) restoreView();
