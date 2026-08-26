@@ -34,6 +34,52 @@ const CARET =
   'stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round">' +
   '<path d="M4.5 2.5 8 6l-3.5 3.5"/></svg>';
 
+// с сервера приходит больше, чем видно в карточке. обход трогает last_seen у
+// каждого устройства каждые три секунды, и если сверять объект целиком, список
+// пересобирается постоянно, унося набранный пароль, фокус и прокрутку
+function shown(device) {
+  return JSON.stringify([
+    device.ip, device.mac, device.hostname, device.vendor, device.vendor_guess,
+    device.type, device.model, device.version, device.status, device.state,
+    device.authorized, device.online, device.online ? null : device.last_seen,
+    device.error, device.lldp, device.drift, device.failed_checks, device.neighbors,
+  ]);
+}
+
+let drawn = new Map();
+
+// пересобираем только те устройства, у которых изменилось видимое. целиком
+// список строится заново, лишь когда меняется сам состав сети
+export function updateList() {
+  const now = state.devices.map((device) => device.ip).join();
+  if (now !== [...drawn.keys()].join()) {
+    renderList();
+    applyOpenState();
+    return;
+  }
+
+  for (const device of state.devices) {
+    const mark = shown(device);
+    if (drawn.get(device.ip) === mark) continue;
+    drawn.set(device.ip, mark);
+    redrawDevice(device);
+  }
+}
+
+function redrawDevice(device) {
+  const item = tree.querySelector(`li.device[data-ip="${CSS.escape(device.ip)}"]`);
+  if (!item) return;
+
+  const icon = item.querySelector(".row img");
+  if (icon) icon.src = (ICONS[device.type] || ICONS.unknown)(statusColor(device.state));
+
+  const name = item.querySelector(".row .name");
+  if (name) name.textContent = device.hostname || device.ip;
+
+  const card = item.querySelector(".card");
+  if (card) card.replaceChildren(deviceDetails(device));
+}
+
 export function renderList() {
   tree.textContent = "";
 
@@ -73,6 +119,8 @@ export function renderList() {
   fold.append(inner);
   net.append(head, fold);
   tree.append(net);
+
+  drawn = new Map(state.devices.map((device) => [device.ip, shown(device)]));
 }
 
 function deviceRow(device) {
