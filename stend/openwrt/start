@@ -1,0 +1,28 @@
+#!/bin/sh
+# Поднимает SSH и LLDP и остаётся на переднем плане.
+
+mkdir -p /var/lock /var/run /run/lldpd
+
+# ubus и uci ждут запущенный ubusd, без него ubus call system board молчит
+ubusd &
+sleep 1
+
+dropbear -R -p 22
+
+# -c CDP, -e EDP, -s SONMP: соседи, объявляющие себя не только по LLDP
+lldpd -c -e -s
+
+sleep 3
+
+# OpenWrt задаёт lldpd шаблон интерфейсов из своей сетевой конфигурации, там
+# логические имена вроде lan. На стенде сетей OpenWrt нет, интерфейсы приходят
+# от containerlab как eth1 и дальше, и под шаблон не подходит ни один: без
+# этой строки демон работает, но не берёт ни одного интерфейса.
+lldpcli configure system interface pattern "eth*" >/dev/null 2>&1
+
+# по умолчанию порт объявляется MAC-адресом, а соседи объявляют имя, и одна
+# связь приходит с двух сторон разными концами, задваиваясь на карте
+lldpcli configure lldp portidsubtype ifname >/dev/null 2>&1
+
+# контейнер должен чем-то держаться, демоны ушли в фон
+tail -f /dev/null

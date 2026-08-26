@@ -17,9 +17,15 @@ topology:
       image: alpine:3.20
 
   nodes:
-    # MAC-адреса задаются из диапазона Nokia 90:EC:E3 по реестру IEEE.
-    # По умолчанию контейнер получает адрес Docker, по нему производителя
+    # MAC-адреса коммутаторов задаются из диапазона Nokia 90:EC:E3 по реестру
+    # IEEE. По умолчанию контейнер получает адрес Docker, по нему производителя
     # не определить, а продукт узнаёт вендора по MAC ещё до входа.
+    #
+    # Маршрутизаторам и точкам доступа адреса не подменяются намеренно. FRRouting
+    # и OpenWrt это программные системы, своего диапазона в реестре IEEE у них
+    # нет, а брать чужой значило бы выдавать одно железо за другое. До входа
+    # такое устройство остаётся без производителя, как и любое с локально
+    # назначенным адресом, а после входа вендора называет драйвер.
     core1:
       kind: nokia_srlinux
       mgmt-ipv4: 172.20.20.11
@@ -35,6 +41,27 @@ topology:
       mgmt-ipv4: 172.20.20.13
       exec:
         - ip link set dev mgmt0 address 90:EC:E3:00:00:13
+
+    # Маршрутизаторы на FRRouting. Образ собирается из stend/frr.
+    edge1:
+      kind: linux
+      image: netmap-frr:latest
+      mgmt-ipv4: 172.20.20.21
+    edge2:
+      kind: linux
+      image: netmap-frr:latest
+      mgmt-ipv4: 172.20.20.22
+
+    # Точки доступа на OpenWrt. Образ собирается из stend/openwrt.
+    ap1:
+      kind: linux
+      image: netmap-openwrt:latest
+      mgmt-ipv4: 172.20.20.31
+    ap2:
+      kind: linux
+      image: netmap-openwrt:latest
+      mgmt-ipv4: 172.20.20.32
+
     pc1:
       kind: linux
       mgmt-ipv4: 172.20.20.101
@@ -45,6 +72,10 @@ topology:
   links:
     - endpoints: ["core1:ethernet-1/1", "acc1:ethernet-1/1"]
     - endpoints: ["core1:ethernet-1/2", "acc2:ethernet-1/1"]
+    - endpoints: ["core1:ethernet-1/3", "edge1:eth1"]
+    - endpoints: ["core1:ethernet-1/4", "edge2:eth1"]
     - endpoints: ["acc1:ethernet-1/2", "acc2:ethernet-1/2"]
     - endpoints: ["acc1:ethernet-1/3", "pc1:eth1"]
+    - endpoints: ["acc1:ethernet-1/4", "ap1:eth1"]
     - endpoints: ["acc2:ethernet-1/3", "pc2:eth1"]
+    - endpoints: ["acc2:ethernet-1/4", "ap2:eth1"]
