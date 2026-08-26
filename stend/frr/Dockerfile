@@ -1,4 +1,4 @@
-FROM frrouting/frr:latest
+FROM quay.io/frrouting/frr:10.7.1
 
 RUN apk add --no-cache openssh-server lldpd \
     && ssh-keygen -A \
