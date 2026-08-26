@@ -153,15 +153,6 @@ function deviceDetails(device) {
     box.append(note);
   }
 
-  if (!kind) {
-    const hint = document.createElement("p");
-    hint.className = "hint";
-    hint.textContent =
-      "MAC-адрес выдаёт производителя, но не тип: у Nokia и Cisco есть и коммутаторы, " +
-      "и маршрутизаторы. Тип берётся из модели устройства, а её видно только после входа.";
-    box.append(hint);
-  }
-
   box.append(
     button("Сделать корнем схемы", "secondary", () => {
       state.rootId = device.ip;
