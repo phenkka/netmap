@@ -91,7 +91,7 @@ async def _probe(ip: str) -> dict | None:
     banner = ""
     try:
         data = await asyncio.wait_for(reader.read(256), BANNER_TIMEOUT)
-        banner = data.decode("utf-8", "replace").strip()
+        banner = _identification(data)
     except (OSError, asyncio.TimeoutError):
         pass
     finally:
@@ -104,6 +104,21 @@ async def _probe(ip: str) -> dict | None:
     return {"ip": ip, "banner": banner}
 
 
+def _identification(data: bytes) -> str:
+    # строка опознания по RFC 4253 это первая строка до перевода. дальше идёт
+    # обмен ключами, dropbear шлёт его одним куском, и без отсечения в базу
+    # уходили нулевые байты, на которых падал весь обход сети
+    return _printable(data.split(b"\n", 1)[0].decode("utf-8", "replace"))
+
+
+def _printable(text: str, keep_lines: bool = False) -> str:
+    return "".join(
+        letter
+        for letter in text
+        if letter.isprintable() or (keep_lines and letter == "\n")
+    ).strip()
+
+
 def login_banner(ip: str) -> str:
     transport = None
     try:
@@ -113,7 +128,8 @@ def login_banner(ip: str) -> str:
             transport.auth_none("netmap")
         except paramiko.SSHException:
             pass
-        return (transport.get_banner() or b"").decode("utf-8", "replace").strip()
+        greeting = (transport.get_banner() or b"").decode("utf-8", "replace")
+        return _printable(greeting, keep_lines=True)
     except Exception:
         return ""
     finally:
