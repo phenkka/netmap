@@ -2,9 +2,32 @@
 set -euo pipefail
 
 IMAGE=netmap-openwrt:latest
+ATTEMPTS=3
+
+sees_neighbors() {
+    for _ in $(seq 12); do
+        if [ "$(docker exec "$1" lldpcli show neighbors 2>/dev/null | grep -c SysName)" -gt 0 ]; then
+            return 0
+        fi
+        sleep 5
+    done
+    return 1
+}
 
 for id in $(docker ps -q --filter "ancestor=$IMAGE"); do
     name=$(docker inspect -f '{{.Name}}' "$id" | sed 's|^/||')
-    docker exec "$id" /usr/local/bin/lldp
-    echo "$name: lldpd перезапущен"
+
+    for attempt in $(seq $ATTEMPTS); do
+        if sees_neighbors "$id"; then
+            echo "$name: lldpd видит соседей"
+            break
+        fi
+        if [ "$attempt" = "$ATTEMPTS" ]; then
+            echo "$name: lldpd соседей не увидел" >&2
+            exit 1
+        fi
+        echo "$name: lldpd молчит, перезапускаю"
+        docker exec "$id" /usr/local/bin/lldp
+        sleep 5
+    done
 done
