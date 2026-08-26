@@ -95,12 +95,16 @@ export function relayout({ track = true, smooth = true, fit = true } = {}) {
           padding: 70,
         };
 
-  // без границ раскладка уложит схему в видимое окно и она уедет
+  // без явных границ раскладка укладывает схему в текущее окно просмотра, а оно
+  // зависит от масштаба после предыдущей подгонки. каждый следующий пересчёт
+  // исходит из результата прошлого, и схема расползается
+  const span = Math.max(2, Math.ceil(Math.sqrt(cy.nodes().length)));
+  const room = { x1: 0, y1: 0, w: span * 340, h: span * 280 };
   const area = cy.elements().length ? cy.elements().boundingBox() : undefined;
 
   const layout = cy.layout({
     ...plan,
-    boundingBox: fit ? undefined : area,
+    boundingBox: fit ? room : area,
     // подгонку масштаба раскладка делает сама, нам это не нужно
     fit: false,
     animate: smooth,
