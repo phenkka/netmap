@@ -8,24 +8,11 @@ topology:
   kinds:
     nokia_srlinux:
       image: ghcr.io/nokia/srlinux:latest
-      # Объявление адреса управления в LLDP. У SR Linux оно выключено по
-      # умолчанию, а без него сосед опознаётся только по имени, то есть уже
-      # после входа на него. Настоящее оборудование в сети управления обычно
-      # объявляет адрес, поэтому стенд ведёт себя так же.
-      startup-config: lldp.partial.cfg
+      startup-config: nokia/lldp.cfg
     linux:
       image: alpine:3.20
 
   nodes:
-    # MAC-адреса коммутаторов задаются из диапазона Nokia 90:EC:E3 по реестру
-    # IEEE. По умолчанию контейнер получает адрес Docker, по нему производителя
-    # не определить, а продукт узнаёт вендора по MAC ещё до входа.
-    #
-    # Маршрутизаторам и точкам доступа адреса не подменяются намеренно. FRRouting
-    # и OpenWrt это программные системы, своего диапазона в реестре IEEE у них
-    # нет, а брать чужой значило бы выдавать одно железо за другое. До входа
-    # такое устройство остаётся без производителя, как и любое с локально
-    # назначенным адресом, а после входа вендора называет драйвер.
     core1:
       kind: nokia_srlinux
       mgmt-ipv4: 172.20.20.11
@@ -42,7 +29,6 @@ topology:
       exec:
         - ip link set dev mgmt0 address 90:EC:E3:00:00:13
 
-    # Маршрутизаторы на FRRouting. Образ собирается из stend/frr.
     edge1:
       kind: linux
       image: netmap-frr:latest
@@ -52,7 +38,6 @@ topology:
       image: netmap-frr:latest
       mgmt-ipv4: 172.20.20.22
 
-    # Точки доступа на OpenWrt. Образ собирается из stend/openwrt.
     ap1:
       kind: linux
       image: netmap-openwrt:latest

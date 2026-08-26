@@ -1,0 +1,16 @@
+#!/bin/sh
+
+killall lldpd 2>/dev/null
+sleep 1
+
+lldpd -c -e -s
+
+n=0
+while [ ! -S /run/lldpd/lldpd.socket ] && [ $n -lt 30 ]; do
+  n=$((n + 1))
+  sleep 0.3
+done
+
+chgrp frr /run/lldpd/lldpd.socket 2>/dev/null && chmod g+rw /run/lldpd/lldpd.socket 2>/dev/null
+
+lldpcli configure lldp portidsubtype ifname >/dev/null 2>&1

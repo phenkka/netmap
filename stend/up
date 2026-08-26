@@ -1,0 +1,22 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+cd "$(dirname "$0")"
+
+LAB=netmap.clab.yml
+
+for dir in */; do
+    vendor=${dir%/}
+    [ -f "$vendor/Dockerfile" ] || continue
+    echo "сборка netmap-$vendor"
+    docker build -q -t "netmap-$vendor:latest" "$vendor"
+done
+
+containerlab deploy -t "$LAB"
+
+for dir in */; do
+    vendor=${dir%/}
+    [ -x "$vendor/post" ] || continue
+    echo "донастройка $vendor"
+    "./$vendor/post"
+done

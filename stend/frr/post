@@ -1,0 +1,10 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+IMAGE=netmap-frr:latest
+
+for id in $(docker ps -q --filter "ancestor=$IMAGE"); do
+    name=$(docker inspect -f '{{.Name}}' "$id" | sed 's|^/||')
+    docker exec "$id" /usr/local/bin/lldp
+    echo "$name: lldpd перезапущен"
+done

@@ -1,0 +1,13 @@
+#!/bin/sh
+
+killall lldpd 2>/dev/null
+sleep 1
+
+lldpd -c -e -s
+
+sleep 3
+
+lldpcli configure system interface pattern "eth*" >/dev/null 2>&1
+lldpcli configure lldp portidsubtype ifname >/dev/null 2>&1
+lldpcli configure system hostname "$(cat /proc/sys/kernel/hostname)" >/dev/null 2>&1
+lldpcli configure system description "OpenWrt" >/dev/null 2>&1
