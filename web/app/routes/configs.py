@@ -72,5 +72,7 @@ def pending(ip: str) -> dict:
         return {"supported": False, "diff": ""}
 
     username, password = inventory.require_credentials(ip)
-    output = ssh.run_lines(ip, username, password, driver.pending_diff_commands)
+    output = ssh.run_lines(
+        ip, username, password, driver.pending_diff_commands, driver.shell_login
+    )
     return {"supported": True, "diff": driver.clean_pending_diff(output)}

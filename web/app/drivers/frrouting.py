@@ -17,9 +17,11 @@ class FrRouting(Driver):
     # правка уходит в running сразу, черновика нет
     pending_diff_commands = []
 
-    # первая строка запускает vtysh, дальше он сам читает поток команд
-    enter_config = ["vtysh", "configure terminal"]
-    leave_config = ["end", "write memory", "exit"]
+    shell_login = True
+
+    # обёртку строит session, поэтому эти два списка драйвер не использует
+    enter_config = []
+    leave_config = []
 
     lldp_state_command = "lldpcli show configuration"
     # lldpd поднимается вместе с системой, включать его через продукт нечем
@@ -46,6 +48,24 @@ class FrRouting(Driver):
         "mgmt_acl": {"require": [r"access-class\s+\S+", r"^\s*ip access-list"]},
         "logging_on": {"require": [r"^log (?:syslog|file|stdout|monitor)"]},
     }
+
+    @classmethod
+    def session(cls, commands: list[str]) -> list[str]:
+        # запущенному отдельной строкой vtysh поток команд не достаётся:
+        # скрипт для оболочки и так приходит на её stdin, и к моменту запуска
+        # там уже ничего нет. heredoc отдаёт команды vtysh явно и не упирается
+        # в длину, а откат отправляет конфигурацию целиком
+        return [
+            "vtysh << 'NETMAPCFG'",
+            "configure terminal",
+            *commands,
+            "end",
+            "write memory",
+            "NETMAPCFG",
+        ]
+
+    # оболочка ругается по-своему, базовые шаблоны её не ловят
+    complaints = Driver.complaints + (r"^-?(?:ash|sh|bash):", r"^vtysh:")
 
     @classmethod
     def matches(cls, output: str) -> bool:

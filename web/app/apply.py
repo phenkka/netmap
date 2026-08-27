@@ -8,7 +8,9 @@ def busy(ip: str, driver, username: str, password: str) -> str:
     if not driver.pending_diff_commands:
         return ""
     pending = driver.clean_pending_diff(
-        ssh.run_lines(ip, username, password, driver.pending_diff_commands)
+        ssh.run_lines(
+            ip, username, password, driver.pending_diff_commands, driver.shell_login
+        )
     )
     return pending
 
@@ -23,7 +25,9 @@ def _discard(ip: str, driver, username: str, password: str) -> None:
     if not driver.discard_commands:
         return
     try:
-        ssh.run_lines(ip, username, password, driver.discard_commands)
+        ssh.run_lines(
+            ip, username, password, driver.discard_commands, driver.shell_login
+        )
     except (ssh.SshError, OSError):
         pass
 
@@ -42,7 +46,9 @@ def send(ip: str, commands: list[str], source: str) -> dict:
             result["detail"] = "на устройстве есть несохранённая правка"
             return result
 
-        output = ssh.run_lines(ip, username, password, driver.session(commands))
+        output = ssh.run_lines(
+            ip, username, password, driver.session(commands), driver.shell_login
+        )
         clean, complaint = driver.applied_cleanly(output)
         if not clean:
             _discard(ip, driver, username, password)
@@ -99,6 +105,7 @@ def rollback(ip: str, version_id: int, login: str | None) -> dict:
         username,
         password,
         driver.restore_commands(target["flat"], (now or {}).get("flat") or ""),
+        driver.shell_login,
     )
     clean, complaint = driver.applied_cleanly(output)
     if not clean:

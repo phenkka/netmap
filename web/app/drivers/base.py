@@ -19,6 +19,10 @@ class Driver:
     # черновика конфигурации нет у Cisco IOS и MikroTik, они применяют сразу
     pending_diff_commands: list[str] = []
 
+    # вход по SSH попадает в оболочку системы, а не в командную строку
+    # сетевой ОС. от этого зависит, как отправляется набор команд
+    shell_login = False
+
     enter_config: list[str] = []
     leave_config: list[str] = []
     # черновик после неудачного commit остаётся грязным и блокирует устройство

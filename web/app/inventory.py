@@ -143,12 +143,16 @@ def ensure_lldp(ip: str, driver, username: str, password: str) -> str | None:
     # черновик общий, наш commit применил бы чужую незаконченную правку
     if driver.pending_diff_commands:
         pending = driver.clean_pending_diff(
-            ssh.run_lines(ip, username, password, driver.pending_diff_commands)
+            ssh.run_lines(
+                ip, username, password, driver.pending_diff_commands, driver.shell_login
+            )
         )
         if pending:
             return "busy"
 
-    ssh.run_lines(ip, username, password, driver.lldp_enable_commands)
+    ssh.run_lines(
+        ip, username, password, driver.lldp_enable_commands, driver.shell_login
+    )
     state = ssh.run(ip, username, password, driver.lldp_state_command)
     return "enabled" if driver.lldp_ready(state) else "failed"
 

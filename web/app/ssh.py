@@ -37,7 +37,16 @@ def run(ip: str, username: str, password: str, command: str) -> str:
         client.close()
 
 
-def run_lines(ip: str, username: str, password: str, lines: list[str]) -> str:
+def run_lines(
+    ip: str, username: str, password: str, lines: list[str], shell: bool = False
+) -> str:
+    # У сетевой ОС вход по SSH попадает сразу в её командную строку, и она
+    # читает команды из потока. У систем на базе Linux вход попадает в оболочку,
+    # а оболочке с пустой командой поток не достаётся: она не выполнит ничего и
+    # молча закроется. Такой системе скрипт передаётся самой командой.
+    if shell:
+        return run(ip, username, password, '\n'.join(lines))
+
     # SR Linux не принимает несколько команд одной строкой
     client = _client(ip, username, password)
     try:

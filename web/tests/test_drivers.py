@@ -353,10 +353,13 @@ def frrouting():
     check("адрес соседа", links[0]["remote_addr"], "172.20.20.11")
     check("только включённые возможности", links[0]["capabilities"], "ROUTER")
 
-    # правка идёт потоком в vtysh, первой строкой он и запускается
+    # запущенному отдельной строкой vtysh поток команд не достаётся,
+    # правка уходит в него heredoc-ом
     commands = FrRouting.session(["ip route 10.0.0.0/8 blackhole"])
-    check("запуск vtysh", commands[0], "vtysh")
-    check("выход с сохранением", commands[-2:], ["write memory", "exit"])
+    check("команды уходят heredoc-ом", commands[0], "vtysh << 'NETMAPCFG'")
+    check("вход в режим настройки", commands[1], "configure terminal")
+    check("правка внутри", commands[2], "ip route 10.0.0.0/8 blackhole")
+    check("сохранение и конец", commands[-3:], ["end", "write memory", "NETMAPCFG"])
 
 
 def openwrt():

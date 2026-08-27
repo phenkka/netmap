@@ -16,6 +16,8 @@ class OpenWrt(Driver):
 
     pending_diff_commands = []
 
+    shell_login = True
+
     # uci пишет правку в свой черновик, на устройство её переносит commit
     enter_config = []
     leave_config = ["uci commit"]
@@ -42,6 +44,9 @@ class OpenWrt(Driver):
         "logging_on": {"require": [r"log_ip|log_file|option\s+log_"]},
         "mgmt_acl": {"require": [r"config\s+rule", r"option\s+src\s+", r"firewall\."]},
     }
+
+    # uci и оболочка ругаются по-своему, базовые шаблоны их не ловят
+    complaints = Driver.complaints + (r"^uci:", r"^-?(?:ash|sh|bash):")
 
     @classmethod
     def matches(cls, output: str) -> bool:
